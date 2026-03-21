@@ -3,6 +3,7 @@
 # Usage: ./run.sh [command]
 #
 # Commands:
+#   build   - Build the project only
 #   dev     - Build and run the application
 #   clean   - Remove build artifacts
 #   run     - Build and run the application
