@@ -1,251 +1,306 @@
-# C Project with nob.h Build System & WebUI + Angular Frontend
+# C + Angular WebUI Project
 
-A full-stack C project using [nob.h](https://github.com/tsoding/nob.h) as the build pipeline, [WebUI](https://github.com/webui-dev/webui) for the backend, and an [Angular](https://angular.dev/) frontend.
+A full-stack desktop application with a C backend using WebUI for native windows and an Angular frontend.
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 .
-├── nob.h                    # Build system header (v3.7.0)
-├── build.c                  # Build script with multiple commands
-├── run.sh                   # Wrapper script
-├── frontend/                # Angular frontend application
-│   ├── src/                 # Frontend source code
-│   ├── dist/                # Built frontend (generated)
-│   └── package.json         # Frontend dependencies
-├── src/                     # Backend C source code
-│   ├── di/                  # Dependency Injection system
-│   │   ├── di.h             # DI header
-│   │   ├── di.c             # DI implementation
-│   │   └── README.md        # DI documentation
-│   ├── services/            # DI Services
-│   │   ├── logger_service.h/c   # Logging service
-│   │   ├── config_service.h/c   # Config service
-│   │   └── webui_service.h/c    # WebUI service
-│   ├── app_module.h         # Service registration (NgModule-like)
-│   └── main.c               # Application entry point
-├── thirdparty/
-│   └── webui/               # WebUI library
-│       ├── include/         # Headers
-│       └── src/             # Source files
-├── build/                   # Output directory (generated)
-│   ├── main                 # Compiled binary
-│   └── libwebui-2.a         # WebUI static library
-└── README.md                # This file
+├── 📄 nob.h                          # Build system header (nob.h v3.7.0)
+├── 📄 build.c                        # Build script with multiple commands
+├── 📄 run.sh                         # Wrapper script for build commands
+├── 📄 .gitignore                     # Git ignore rules
+├── 📄 README.md                      # This file
+│
+├── 📂 src/                           # Backend C source code
+│   ├── 📄 main.c                     # Application entry point
+│   ├── 📄 app_module.h               # Service registration (NgModule-like)
+│   │
+│   ├── 📂 di/                        # Dependency Injection System (stb-style)
+│   │   ├── 📄 di.h                   # Single header DI library
+│   │   ├── 📄 di_impl.c              # DI implementation
+│   │   └── 📄 README.md              # DI documentation
+│   │
+│   └── 📂 services/                  # DI Services
+│       ├── 📄 logger_service.h/c     # Logging with timestamps
+│       ├── 📄 config_service.h/c     # Application configuration
+│       ├── 📄 webui_service.h/c      # WebUI window management
+│       ├── 📄 event_service.h/c      # Pub/sub event bus
+│       ├── 📄 file_service.h/c       # File system operations
+│       └── 📄 timer_service.h/c      # Timing and scheduling
+│
+├── 📂 frontend/                      # Angular frontend application
+│   ├── 📄 package.json               # Node.js dependencies
+│   ├── 📄 bun.lock                   # Bun lockfile
+│   ├── 📄 bunfig.toml                # Bun configuration
+│   ├── 📄 biome.json                 # Biome linter config
+│   ├── 📄 tsconfig.json              # TypeScript config
+│   ├── 📄 rspack.config.js           # Rspack bundler config
+│   ├── 📄 angular.json               # Angular CLI config
+│   ├── 📄 README.md                  # Frontend documentation
+│   │
+│   ├── 📂 src/                       # Frontend source
+│   │   ├── 📄 main.ts                # Frontend entry point
+│   │   ├── 📄 index.html             # HTML template
+│   │   ├── 📄 styles.css             # Global styles
+│   │   ├── 📄 winbox-loader.ts       # WinBox window loader
+│   │   │
+│   │   ├── 📂 views/                 # View components
+│   │   │   ├── 📄 app.component.html/ts/css  # Main app component
+│   │   │   ├── 📂 home/              # Home view
+│   │   │   ├── 📂 auth/              # Authentication view
+│   │   │   ├── 📂 sqlite/            # SQLite CRUD view
+│   │   │   ├── 📂 devtools/          # DevTools view
+│   │   │   └── 📂 shared/            # Shared components
+│   │   │
+│   │   ├── 📂 core/                  # Core services
+│   │   │   ├── 📄 api.service.ts     # API communication
+│   │   │   ├── 📄 http.service.ts    # HTTP client
+│   │   │   ├── 📄 logger.service.ts  # Logging service
+│   │   │   ├── 📄 theme.service.ts   # Theme management
+│   │   │   ├── 📄 winbox.service.ts  # WinBox window manager
+│   │   │   ├── 📄 webui/             # WebUI integration
+│   │   │   └── 📄 *.test.ts          # Service tests
+│   │   │
+│   │   ├── 📂 models/                # TypeScript models
+│   │   │   ├── 📄 card.model.ts      # Card data model
+│   │   │   ├── 📄 log.model.ts       # Log entry model
+│   │   │   ├── 📄 window.model.ts    # Window model
+│   │   │   └── 📄 index.ts           # Barrel export
+│   │   │
+│   │   ├── 📂 types/                 # TypeScript types
+│   │   │   ├── 📄 error.types.ts     # Error types
+│   │   │   ├── 📄 winbox.d.ts        # WinBox type definitions
+│   │   │   └── 📄 index.ts           # Barrel export
+│   │   │
+│   │   ├── 📂 environments/          # Environment configs
+│   │   │   └── 📄 environment.ts     # Environment variables
+│   │   │
+│   │   └── 📂 integration/           # Integration tests
+│   │       └── 📄 *.test.ts          # Integration test files
+│   │
+│   ├── 📂 dist/                      # Built output (generated)
+│   │   └── 📂 browser/               # Browser build
+│   │       ├── 📄 index.html         # Built HTML
+│   │       ├── 📄 main-*.js          # Bundled JavaScript
+│   │       ├── 📄 styles-*.css       # Bundled CSS
+│   │       └── 📄 polyfills-*.js     # Polyfills
+│   │
+│   └── 📂 docs/                      # Documentation
+│       ├── 📄 00-README.md           # Docs index
+│       └── 📄 01-DI_EVALUATION.md    # DI system evaluation
+│
+├── 📂 thirdparty/                    # Third-party libraries
+│   └── 📂 webui/                     # WebUI library
+│       ├── 📂 include/               # WebUI headers
+│       │   ├── 📄 webui.h            # WebUI C header
+│       │   └── 📄 webui.hpp          # WebUI C++ header
+│       │
+│       ├── 📂 src/                   # WebUI source
+│       │   ├── 📄 webui.c            # WebUI implementation
+│       │   └── 📂 civetweb/          # CivetWeb embedded server
+│       │
+│       ├── 📂 examples/              # WebUI examples
+│       │   ├── 📂 C/                 # C examples
+│       │   └── 📂 C++/               # C++ examples
+│       │
+│       └── 📂 bridge/                # WebUI bridge utilities
+│
+└── 📂 build/                         # Build output (generated)
+    ├── 📄 main                       # Compiled binary
+    ├── 📄 libwebui-2.a               # WebUI static library
+    ├── 📄 webui.o                    # WebUI object file
+    └── 📄 civetweb.o                 # CivetWeb object file
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - GCC compiler
 - [Bun](https://bun.sh/) (for frontend builds)
 
-### Install dependencies (first time only)
-
-The build script automatically installs frontend dependencies if `frontend/node_modules` is missing.
-You can also pre-install manually:
+### Build Commands
 
 ```bash
-cd frontend && bun install && cd ..
-```
-
-### Show help
-
-```bash
+# Show help
 ./run.sh
-```
 
-### Build and run the application
-
-```bash
+# Build and run (default)
 ./run.sh dev
-```
 
-This will:
-1. Build the Angular frontend (`frontend/dist/browser/`)
-2. Build the WebUI static library
-3. Compile the C backend
-4. Start the web server and open your browser
+# Build only (no run)
+./run.sh build
 
-### Clean build artifacts
-
-```bash
+# Clean build artifacts
 ./run.sh clean
-```
 
-### Rebuild from scratch
-
-```bash
+# Clean and rebuild
 ./run.sh rebuild
 ```
 
-## Build Commands
+## 🏗️ Architecture
+
+### Backend (C + DI System + WebUI)
+
+```
+src/
+├── main.c              → Entry point, DI initialization
+├── app_module.h        → Service registration
+├── di/                 → Dependency Injection (stb-style)
+│   ├── di.h           → Single header library
+│   └── di_impl.c      → Implementation
+└── services/          → Application services
+    ├── logger_service → Logging
+    ├── event_service  → Pub/Sub events
+    ├── file_service   → File operations
+    ├── timer_service  → Timing/scheduling
+    ├── config_service → Configuration
+    └── webui_service  → WebUI wrapper
+```
+
+**Service Dependencies:**
+```
+LoggerService ─┬─→ ConfigService ─→ WebuiService
+EventService   │
+FileService    │
+TimerService ──┘
+```
+
+### Frontend (Angular + Rspack)
+
+```
+frontend/src/
+├── main.ts            → Bootstrap
+├── index.html         → Entry HTML
+├── views/             → Components
+│   ├── app.component  → Root component
+│   ├── home/          → Home view
+│   ├── auth/          → Auth view
+│   ├── sqlite/        → Database view
+│   └── devtools/      → DevTools view
+├── core/              → Services
+│   ├── api.service    → Backend API
+│   ├── logger.service → Logging
+│   ├── theme.service  → Theming
+│   └── winbox.service → Window management
+├── models/            → Data models
+└── types/             → TypeScript types
+```
+
+## 📦 Build Pipeline
+
+### nob.h Build System
+
+The project uses [nob.h](https://github.com/tsoding/nob.h) v3.7.0, a single-header C build library.
+
+**Build Flow:**
+```
+build.c (build script)
+    ↓
+nob.h (build library)
+    ↓
+1. Build Angular frontend → frontend/dist/browser/
+2. Build WebUI static lib → build/libwebui-2.a
+3. Compile C backend    → build/main
+4. Launch application
+```
+
+### Build Commands (build.c)
 
 | Command | Description |
 |---------|-------------|
-| `./run.sh` | Show help (default) |
-| `./run.sh build` | Build the project only (no run) |
-| `./run.sh dev` | Build and run the application |
-| `./run.sh clean` | Remove build artifacts |
-| `./run.sh run` | Build and run the application |
-| `./run.sh rebuild` | Clean and rebuild |
-| `./run.sh help` | Show help message |
+| `dev` | Build frontend + backend + run |
+| `build` | Build only |
+| `clean` | Remove build artifacts |
+| `run` | Build and run |
+| `rebuild` | Clean + build + run |
+| `help` | Show help |
 
-## Build Configuration
+## 🔧 Dependency Injection System
 
-### Warning Levels
-
-- **Our code** (`build.c`, `main.c`): Compiled with `-Wall -Wextra -Werror` (strict)
-- **Third-party code** (WebUI, CivetWeb): Compiled with relaxed warnings to suppress unused variable warnings in the library
-
-This ensures our code is warning-free while allowing third-party libraries to compile without noise.
-
-## How It Works
-
-## Backend (C + WebUI + DI)
-
-The C backend uses:
-1. **WebUI** - Native WebView window embedding
-2. **DI System** - Angular-inspired dependency injection
-3. **CivetWeb** - Embedded web server
-
-### Dependency Injection
-
-The backend features a type-safe DI system inspired by Angular:
+The backend features an **stb-style single-header DI system** inspired by Angular:
 
 ```c
-// Service definition
+// 1. Define service (header)
 typedef struct {
     DI_Service base;
-    LoggerService* logger;  // Dependency
+    LoggerService* logger;
 } ConfigService;
 
-// Constructor injection (similar to Angular)
+DI_DECLARE_SERVICE(ConfigService, config_service);
+
+// 2. Implement (source)
 DI_SERVICE_INIT(ConfigService, config_service) {
-    self->logger = logger_service_inject();  // Like inject()
+    self->logger = logger_service_inject();  // Inject dependency
     return DI_OK;
 }
 
-// Usage
+DI_DEFINE_SERVICE(ConfigService, config_service)
+
+// 3. Use
 ConfigService* config = config_service_inject();
 ```
 
 See [src/di/README.md](src/di/README.md) for full documentation.
 
-### Services
-
-| Service | Description | Scope | Dependencies |
-|---------|-------------|-------|--------------|
-| `LoggerService` | Logging with timestamps and levels | Singleton | None |
-| `EventService` | Pub/sub event bus for decoupled communication | Singleton | None |
-| `FileService` | File system operations (read, write, copy, delete) | Singleton | None |
-| `TimerService` | Timing and scheduling (timeout, interval) | Singleton | None |
-| `ConfigService` | Application configuration | Singleton | LoggerService |
-| `WebuiService` | WebUI window management | Singleton | LoggerService, ConfigService |
-
-### Service Dependencies
-
-```
-LoggerService (foundation)
-EventService  (foundation)
-FileService   (foundation)
-TimerService  (foundation)
-     ↓
-ConfigService (depends on LoggerService)
-     ↓
-WebuiService  (depends on LoggerService, ConfigService)
-```
-
-### Service Registration
-
-Services are registered in `app_module.h` similar to Angular's `NgModule`:
-
-```c
-static inline int app_module_init(void) {
-    // Register in dependency order
-    DI_REGISTER_SINGLETON(LoggerService, logger_service);
-    DI_REGISTER_SINGLETON(ConfigService, config_service);
-    DI_REGISTER_SINGLETON(WebuiService, webui_service);
-    return 0;
-}
-```
-
-## Frontend Features
-
-### Design Philosophy
-- **Minimalist**: Removed unnecessary UI elements, stats, and clutter
-- **Clean**: Focused on content with simple navigation
-- **Responsive**: Seamless experience across desktop and mobile
+## 🎨 Frontend Features
 
 ### Desktop Mode (>768px)
-- **Collapsible Sidebar**: Left navigation with icons and labels
-- **Toggle**: Press `Ctrl/Cmd + B` to collapse/expand sidebar
-- **Main Content**: Centered, readable layout with card grids
-- **Two Menu Groups**: Main (Home, Auth, SQLite, DevTools) and Support (Settings, Help, About)
+- Collapsible sidebar navigation
+- Centered content with card grids
+- Keyboard shortcuts (`Ctrl/Cmd + B` to toggle sidebar)
 
 ### Mobile Mode (≤768px)
-- **Mobile Header**: Fixed top bar with menu toggle and page title
-- **Slide-in Menu**: Left panel with full navigation
-- **Overlay Backdrop**: Tap to close menu
-- **Escape Key**: Closes mobile menu
-- **Single Column Cards**: Optimized for small screens
+- Mobile header with menu toggle
+- Slide-in navigation panel
+- Overlay backdrop
+- Single-column card layout
 
-### Removed Elements
-- ❌ Stats section (menu counts)
-- ❌ Search functionality (unused)
-- ❌ Third panel selector (Details/Activity)
-- ❌ Footer actions (expand/collapse, info buttons)
-- ❌ Resizable splitters (complex for minimal gain)
-- ❌ Duplicate content sections
+### Services (Frontend)
+| Service | Purpose |
+|---------|---------|
+| `ApiService` | Backend communication |
+| `LoggerService` | Client-side logging |
+| `ThemeService` | Dark/light theme |
+| `WinBoxService` | Window management |
+| `WebuiService` | WebUI backend bridge |
 
-### Keyboard Shortcuts
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl/Cmd + B` | Toggle sidebar collapse |
-| `Escape` | Close mobile menu |
+## 📊 Project Statistics
 
-The Angular frontend:
-1. Builds to `frontend/dist/browser/`
-2. Is served by the C backend's embedded web server
-3. Is displayed in a native WebView window (WebKit on Linux, WebView2 on Windows, WebKit on macOS)
-4. Can communicate with the backend via bound functions
+| Category | Count |
+|----------|-------|
+| Backend Services | 6 |
+| Frontend Services | 12+ |
+| View Components | 5 |
+| Test Files | 15+ |
+| Build Time (frontend) | ~15-20s |
+| Build Time (backend) | ~2-3s |
 
-### Communication Example
+## 📝 Documentation
 
-**Backend (C):**
-```c
-void on_frontend_event(webui_event_t* e) {
-    const char* data = webui_get_string_at(e, 1);
-    printf("Frontend sent: %s\n", data);
-}
+- [README.md](README.md) - This file (project overview)
+- [src/di/README.md](src/di/README.md) - DI system documentation
+- [frontend/README.md](frontend/README.md) - Frontend documentation
+- [frontend/docs/](frontend/docs/) - Additional frontend docs
 
-webui_bind(my_window, "backend_event", on_frontend_event);
-```
+## 🔑 Key Technologies
 
-**Frontend (TypeScript):**
-```typescript
-// Call backend function
-window.backend_event('Hello from Angular!');
-```
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Build** | nob.h | C build automation |
+| **Build** | Bun | Frontend package manager |
+| **Build** | Rspack | Frontend bundler |
+| **Backend** | C (C99) | Application logic |
+| **Backend** | DI System | Dependency injection |
+| **Backend** | WebUI | Native WebView windows |
+| **Backend** | CivetWeb | Embedded web server |
+| **Frontend** | Angular v21 | UI framework |
+| **Frontend** | TypeScript | Type-safe JavaScript |
+| **Frontend** | WinBox | Window management |
+| **Frontend** | Lucide Icons | Icon library |
 
-## Auto-Rebuild Feature
-
-The build script uses `NOB_GO_REBUILD_URSELF` which automatically recompiles itself when you modify `build.c` or `nob.h`. This means you can edit the build script and just run it again - it will rebuild itself first!
-
-## Development Workflow
-
-1. **Frontend changes**: Edit files in `frontend/src/`, then run `./run.sh dev`
-2. **Backend changes**: Edit `main.c`, then run `./run.sh dev`
-3. **Build script changes**: Edit `build.c`, it auto-rebuilds on next run
-
-## WebUI Resources
-
-- [WebUI GitHub](https://github.com/webui-dev/webui)
-- [WebUI Documentation](https://webui.me/docs/)
-- [WebUI Examples](https://github.com/webui-dev/webui/tree/main/examples)
-
-## License
+## 📄 License
 
 - **nob.h** - Public Domain
 - **WebUI** - MIT License
