@@ -20,6 +20,7 @@ DI_DECLARE_SERVICE(ConfigService, config_service);
 
 /* Config methods */
 const char* config_get_app_name(ConfigService* self);
+const char* config_get_app_version(ConfigService* self);
 int config_get_port(ConfigService* self);
 bool config_is_debug(ConfigService* self);
 

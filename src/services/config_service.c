@@ -39,6 +39,11 @@ const char* config_get_app_name(ConfigService* self) {
     return self->app_name;
 }
 
+const char* config_get_app_version(ConfigService* self) {
+    if (!self) return "0.0.0";
+    return self->app_version;
+}
+
 int config_get_port(ConfigService* self) {
     if (!self) return 0;
     return self->port;

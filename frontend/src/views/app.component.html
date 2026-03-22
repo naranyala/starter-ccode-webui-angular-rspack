@@ -1,215 +1,170 @@
 <div class="app-container">
-  <!-- Mobile Header -->
-  <header class="mobile-header">
-    <button type="button" class="mobile-header__menu" (click)="toggleMobileMenu()" aria-label="Toggle menu">
-      <lucide-angular [img]="icons.Menu" size="24"></lucide-angular>
-    </button>
-    <h1 class="mobile-header__title">{{ getPageTitle() }}</h1>
-  </header>
+  <!-- Desktop: Two-column layout (sidebar + content) -->
+  <main class="main-container desktop-layout">
+    <!-- LEFT SIDEBAR - Navigation -->
+    <aside class="sidebar" [class.sidebar--collapsed]="sidebarCollapsed()">
+      <div class="sidebar__content">
+        <!-- Logo/Brand -->
+        <div class="sidebar__brand">
+          <lucide-angular [img]="icons.Folder" class="brand__icon" size="24"></lucide-angular>
+          @if (!sidebarCollapsed()) {
+            <span class="brand__label">WebUI App</span>
+          }
+        </div>
 
-  <!-- Mobile Menu Overlay -->
-  <div class="mobile-overlay" [class.mobile-overlay--visible]="mobileMenuOpen()" (click)="closeMobileMenu()"></div>
-
-  <!-- Mobile Menu Panel -->
-  <aside class="mobile-menu" [class.mobile-menu--visible]="mobileMenuOpen()">
-    <div class="mobile-menu__header">
-      <h2>Menu</h2>
-      <button type="button" class="mobile-menu__close" (click)="closeMobileMenu()" aria-label="Close menu">
-        <lucide-angular [img]="icons.X" size="20"></lucide-angular>
-      </button>
-    </div>
-    <nav class="mobile-menu__nav">
-      @for (item of mainMenus(); track item.id) {
-        <button type="button" class="mobile-menu-item" [class.mobile-menu-item--active]="activeView() === item.id" (click)="selectMenuItem(item.id)">
-          <lucide-angular [img]="getIcon(item.icon)" size="20"></lucide-angular>
-          <span>{{ item.label }}</span>
-        </button>
-      }
-      <div class="mobile-menu__divider"></div>
-      @for (item of supportMenus(); track item.id) {
-        <button type="button" class="mobile-menu-item" [class.mobile-menu-item--active]="activeView() === item.id" (click)="selectMenuItem(item.id)">
-          <lucide-angular [img]="getIcon(item.icon)" size="20"></lucide-angular>
-          <span>{{ item.label }}</span>
-        </button>
-      }
-    </nav>
-  </aside>
-
-  <!-- Desktop Sidebar -->
-  <aside class="sidebar" [class.sidebar--collapsed]="sidebarCollapsed()">
-    <div class="sidebar__content">
-      <nav class="sidebar__nav">
-        @for (item of mainMenus(); track item.id) {
-          <button type="button" class="sidebar__item" [class.sidebar__item--active]="activeView() === item.id" (click)="setActiveView(item.id)">
-            <lucide-angular [img]="getIcon(item.icon)" size="22"></lucide-angular>
-            @if (!sidebarCollapsed()) {
-              <span>{{ item.label }}</span>
+        <!-- Search (only when expanded) -->
+        @if (!sidebarCollapsed()) {
+          <div class="sidebar__search">
+            <lucide-angular [img]="icons.Search" class="search__icon" size="16"></lucide-angular>
+            <input
+              type="text"
+              class="search__input"
+              placeholder="Search..."
+              [value]="searchQuery()"
+              (input)="onSearchChange($event)">
+            @if (searchQuery()) {
+              <button type="button" class="search__clear" (click)="clearSearch()">
+                <lucide-angular [img]="icons.X" size="14"></lucide-angular>
+              </button>
             }
-          </button>
+          </div>
         }
-      </nav>
-      <nav class="sidebar__nav sidebar__nav--bottom">
-        @for (item of supportMenus(); track item.id) {
-          <button type="button" class="sidebar__item" [class.sidebar__item--active]="activeView() === item.id" (click)="setActiveView(item.id)">
-            <lucide-angular [img]="getIcon(item.icon)" size="22"></lucide-angular>
-            @if (!sidebarCollapsed()) {
-              <span>{{ item.label }}</span>
-            }
-          </button>
-        }
-      </nav>
-    </div>
-  </aside>
 
-  <!-- Main Content Area -->
-  <main class="main-content">
-    <div class="content-container">
+        <!-- Navigation Menu -->
+        <nav class="sidebar__nav">
+          @for (item of filteredMenus(); track item.id) {
+            <button
+              type="button"
+              class="nav-item"
+              [class.nav-item--active]="activeView() === item.id"
+              (click)="setActiveView(item.id)"
+              [attr.title]="sidebarCollapsed() ? item.label : null">
+              <lucide-angular [img]="getIcon(item.icon)" class="nav-item__icon" size="20"></lucide-angular>
+              @if (!sidebarCollapsed()) {
+                <span class="nav-item__label">{{ item.label }}</span>
+              }
+            </button>
+          }
+        </nav>
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar__footer">
+        <button
+          type="button"
+          class="sidebar__toggle"
+          (click)="toggleSidebar()"
+          [attr.title]="sidebarCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
+          <lucide-angular [img]="sidebarCollapsed() ? icons.Menu : icons.X" size="18"></lucide-angular>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <section class="content">
       @switch (activeView()) {
         @case ('home') {
           <div class="page">
-            <div class="page__header">
-              <lucide-angular [img]="icons.Home" size="32"></lucide-angular>
-              <h1>Home</h1>
-            </div>
-            <p class="page__description">Welcome to your dashboard. Select an option from the menu to get started.</p>
+            <header class="page__header">
+              <lucide-angular [img]="icons.Home" size="28"></lucide-angular>
+              <h1 class="page__title">Home</h1>
+            </header>
+            <p class="page__description">Welcome to your dashboard. Select an option from the sidebar to get started.</p>
             <div class="card-grid">
               <div class="card">
-                <h3>Quick Start</h3>
-                <p>Get started by exploring the features in the sidebar.</p>
+                <h3 class="card__title">Quick Start</h3>
+                <p class="card__description">Get started by exploring the features in the sidebar.</p>
               </div>
               <div class="card">
-                <h3>Recent Activity</h3>
-                <p>View your recent activities and updates here.</p>
+                <h3 class="card__title">Recent Activity</h3>
+                <p class="card__description">View your recent activities and updates here.</p>
               </div>
             </div>
           </div>
         }
         @case ('auth') {
           <div class="page">
-            <div class="page__header">
-              <lucide-angular [img]="icons.Lock" size="32"></lucide-angular>
-              <h1>Authentication</h1>
-            </div>
+            <header class="page__header">
+              <lucide-angular [img]="icons.Lock" size="28"></lucide-angular>
+              <h1 class="page__title">Authentication</h1>
+            </header>
             <p class="page__description">Manage authentication settings and security preferences.</p>
             <div class="card-grid">
               <div class="card">
-                <h3>Login Settings</h3>
-                <p>Configure your login preferences and security options.</p>
+                <h3 class="card__title">Login Settings</h3>
+                <p class="card__description">Configure your login preferences and security options.</p>
               </div>
               <div class="card">
-                <h3>User Management</h3>
-                <p>Manage user accounts and permissions.</p>
+                <h3 class="card__title">User Management</h3>
+                <p class="card__description">Manage user accounts and permissions.</p>
               </div>
             </div>
           </div>
         }
         @case ('sqlite') {
           <div class="page">
-            <div class="page__header">
-              <lucide-angular [img]="icons.Database" size="32"></lucide-angular>
-              <h1>SQLite CRUD</h1>
-            </div>
+            <header class="page__header">
+              <lucide-angular [img]="icons.Database" size="28"></lucide-angular>
+              <h1 class="page__title">SQLite CRUD</h1>
+            </header>
             <p class="page__description">Database operations and data management.</p>
             <div class="card-grid">
               <div class="card">
-                <h3>Database Tables</h3>
-                <p>View and manage your database tables.</p>
+                <h3 class="card__title">Database Tables</h3>
+                <p class="card__description">View and manage your database tables.</p>
               </div>
               <div class="card">
-                <h3>Query Builder</h3>
-                <p>Build and execute database queries.</p>
+                <h3 class="card__title">Query Builder</h3>
+                <p class="card__description">Build and execute database queries.</p>
               </div>
             </div>
           </div>
         }
         @case ('devtools') {
           <div class="page">
-            <div class="page__header">
-              <lucide-angular [img]="icons.Settings" size="32"></lucide-angular>
-              <h1>DevTools</h1>
-            </div>
+            <header class="page__header">
+              <lucide-angular [img]="icons.Settings" size="28"></lucide-angular>
+              <h1 class="page__title">DevTools</h1>
+            </header>
             <p class="page__description">Debugging tools and development utilities.</p>
             <div class="card-grid">
               <div class="card">
-                <h3>Console</h3>
-                <p>View application logs and debug output.</p>
+                <h3 class="card__title">Console</h3>
+                <p class="card__description">View application logs and debug output.</p>
               </div>
               <div class="card">
-                <h3>Network Monitor</h3>
-                <p>Monitor network requests and responses.</p>
-              </div>
-            </div>
-          </div>
-        }
-        @case ('settings') {
-          <div class="page">
-            <div class="page__header">
-              <lucide-angular [img]="icons.Settings" size="32"></lucide-angular>
-              <h1>Settings</h1>
-            </div>
-            <p class="page__description">Configure application settings.</p>
-            <div class="card-grid">
-              <div class="card">
-                <h3>General</h3>
-                <p>General application preferences.</p>
-              </div>
-              <div class="card">
-                <h3>Advanced</h3>
-                <p>Advanced configuration options.</p>
-              </div>
-            </div>
-          </div>
-        }
-        @case ('help') {
-          <div class="page">
-            <div class="page__header">
-              <lucide-angular [img]="icons.Info" size="32"></lucide-angular>
-              <h1>Help</h1>
-            </div>
-            <p class="page__description">Get help and support.</p>
-            <div class="card-grid">
-              <div class="card">
-                <h3>Documentation</h3>
-                <p>Read the documentation.</p>
-              </div>
-              <div class="card">
-                <h3>FAQ</h3>
-                <p>Frequently asked questions.</p>
-              </div>
-            </div>
-          </div>
-        }
-        @case ('about') {
-          <div class="page">
-            <div class="page__header">
-              <lucide-angular [img]="icons.Info" size="32"></lucide-angular>
-              <h1>About</h1>
-            </div>
-            <p class="page__description">About this application.</p>
-            <div class="card-grid">
-              <div class="card">
-                <h3>Version</h3>
-                <p>1.0.0</p>
-              </div>
-              <div class="card">
-                <h3>Credits</h3>
-                <p>Built with WebUI and Angular.</p>
+                <h3 class="card__title">Network Monitor</h3>
+                <p class="card__description">Monitor network requests and responses.</p>
               </div>
             </div>
           </div>
         }
         @default {
           <div class="page">
-            <div class="page__header">
-              <lucide-angular [img]="icons.Home" size="32"></lucide-angular>
-              <h1>Home</h1>
-            </div>
-            <p class="page__description">Welcome to your dashboard.</p>
+            <header class="page__header">
+              <lucide-angular [img]="icons.Home" size="28"></lucide-angular>
+              <h1 class="page__title">{{ activeView() | titlecase }}</h1>
+            </header>
+            <p class="page__description">Content coming soon...</p>
           </div>
         }
       }
-    </div>
+    </section>
   </main>
+
+  <!-- Mobile: Bottom Navigation -->
+  <nav class="mobile-nav mobile-layout">
+    @for (item of filteredMenus(); track item.id) {
+      <button
+        type="button"
+        class="mobile-nav__item"
+        [class.mobile-nav__item--active]="activeView() === item.id"
+        (click)="setActiveView(item.id)">
+        <lucide-angular [img]="getIcon(item.icon)" class="mobile-nav__icon" size="22"></lucide-angular>
+        <span class="mobile-nav__label">{{ item.label }}</span>
+      </button>
+    }
+  </nav>
 
   <!-- Window Layer for WinBox -->
   <div class="window-layer"></div>

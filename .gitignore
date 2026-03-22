@@ -5,6 +5,8 @@ frontend/dist
 frontend/.angular
 
 
+thirdparty/*duckdb*
+
 nob
 build_runner
 build/
