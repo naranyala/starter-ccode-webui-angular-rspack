@@ -778,6 +778,8 @@ void sqlite_service_destroy(DI_Service* service) {
 
     if (self->base.initialized) {
         if (self->db) {
+            /* Checkpoint WAL before closing for proper persistence */
+            sqlite_checkpoint(self, 0);
             sqlite_close(self);
         }
         self->base.initialized = 0;
@@ -789,4 +791,173 @@ void sqlite_service_destroy(DI_Service* service) {
 
     free(self->error);
     free(self);
+}
+
+/* ==================== Persistence Functions ==================== */
+
+const char* sqlite_get_path(SQLiteService* self) {
+    if (!self) return NULL;
+    return self->db_path;
+}
+
+int sqlite_checkpoint(SQLiteService* self, int aggressive) {
+    if (!self || !self->db) {
+        return 0;
+    }
+    
+    LoggerService* logger = logger_service_inject();
+    int frames = 0;
+    
+    int rc = sqlite3_wal_checkpoint_v2(
+        self->db,
+        NULL,
+        aggressive ? SQLITE_CHECKPOINT_TRUNCATE : SQLITE_CHECKPOINT_PASSIVE,
+        &frames,
+        NULL
+    );
+    
+    if (rc == SQLITE_OK || rc == SQLITE_BUSY) {
+        if (logger && frames > 0) {
+            logger_log(logger, "INFO", "SQLite: Checkpoint completed (%d frames)", frames);
+        }
+        return 1;
+    }
+    
+    set_error(self, "Checkpoint failed: %s", sqlite3_errmsg(self->db));
+    if (logger) {
+        logger_log(logger, "ERROR", "SQLite: Checkpoint failed: %s", self->error);
+    }
+    return 0;
+}
+
+int sqlite_backup_to_file(SQLiteService* self, const char* backup_path) {
+    if (!self || !self->db || !backup_path) {
+        return 0;
+    }
+    
+    LoggerService* logger = logger_service_inject();
+    
+    sqlite3* backup_db = NULL;
+    int rc = sqlite3_open(backup_path, &backup_db);
+    if (rc != SQLITE_OK) {
+        if (logger) {
+            logger_log(logger, "ERROR", "SQLite: Failed to create backup file: %s", sqlite3_errmsg(backup_db));
+        }
+        if (backup_db) sqlite3_close(backup_db);
+        return 0;
+    }
+    
+    sqlite3_backup* backup = sqlite3_backup_init(backup_db, "main", self->db, "main");
+    if (!backup) {
+        if (logger) {
+            logger_log(logger, "ERROR", "SQLite: Failed to init backup: %s", sqlite3_errmsg(backup_db));
+        }
+        sqlite3_close(backup_db);
+        return 0;
+    }
+    
+    rc = sqlite3_backup_step(backup, -1);
+    sqlite3_backup_finish(backup);
+    sqlite3_close(backup_db);
+    
+    if (rc == SQLITE_DONE) {
+        if (logger) {
+            logger_log(logger, "INFO", "SQLite: Backup created: %s", backup_path);
+        }
+        return 1;
+    }
+    
+    if (logger) {
+        logger_log(logger, "ERROR", "SQLite: Backup failed at step %d", rc);
+    }
+    return 0;
+}
+
+int sqlite_restore_from_backup(SQLiteService* self, const char* backup_path) {
+    if (!self || !self->db || !backup_path) {
+        return 0;
+    }
+    
+    LoggerService* logger = logger_service_inject();
+    
+    /* First checkpoint current database */
+    sqlite_checkpoint(self, 1);
+    
+    sqlite3* backup_db = NULL;
+    int rc = sqlite3_open(backup_path, &backup_db);
+    if (rc != SQLITE_OK) {
+        if (logger) {
+            logger_log(logger, "ERROR", "SQLite: Failed to open backup file: %s", sqlite3_errmsg(backup_db));
+        }
+        if (backup_db) sqlite3_close(backup_db);
+        return 0;
+    }
+    
+    sqlite3_backup* backup = sqlite3_backup_init(self->db, "main", backup_db, "main");
+    if (!backup) {
+        if (logger) {
+            logger_log(logger, "ERROR", "SQLite: Failed to init restore: %s", sqlite3_errmsg(self->db));
+        }
+        sqlite3_close(backup_db);
+        return 0;
+    }
+    
+    rc = sqlite3_backup_step(backup, -1);
+    sqlite3_backup_finish(backup);
+    sqlite3_close(backup_db);
+    
+    if (rc == SQLITE_DONE) {
+        if (logger) {
+            logger_log(logger, "INFO", "SQLite: Database restored from: %s", backup_path);
+        }
+        return 1;
+    }
+    
+    if (logger) {
+        logger_log(logger, "ERROR", "SQLite: Restore failed at step %d", rc);
+    }
+    return 0;
+}
+
+#include <sys/stat.h>
+
+long long sqlite_get_file_size(SQLiteService* self) {
+    if (!self || !self->db_path) return -1;
+    
+    struct stat st;
+    if (stat(self->db_path, &st) == 0) {
+        return st.st_size;
+    }
+    return -1;
+}
+
+long long sqlite_get_wal_size(SQLiteService* self) {
+    if (!self || !self->db_path) return -1;
+    
+    char wal_path[512];
+    snprintf(wal_path, sizeof(wal_path), "%s-wal", self->db_path);
+    
+    struct stat st;
+    if (stat(wal_path, &st) == 0) {
+        return st.st_size;
+    }
+    return 0;
+}
+
+void sqlite_get_status(SQLiteService* self, int* page_count, int* freelist_count, int* schema_version) {
+    if (!self || !self->db) return;
+    
+    int hiwat = 0;
+    
+    if (page_count) {
+        *page_count = sqlite3_db_status(self->db, 1 /* SQLITE_DBSTATUS_CACHE_USED */, page_count, &hiwat, 0);
+    }
+    
+    if (freelist_count) {
+        *freelist_count = sqlite3_db_status(self->db, 2 /* SQLITE_DBSTATUS_SCHEMA_USED */, freelist_count, &hiwat, 0);
+    }
+    
+    if (schema_version) {
+        *schema_version = self->current_version;
+    }
 }

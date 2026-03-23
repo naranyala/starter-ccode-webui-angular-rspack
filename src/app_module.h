@@ -6,6 +6,26 @@
 #include <stdbool.h>
 #include "di/di.h"
 
+/* Database type selection (can be set via environment variable or config) */
+typedef enum {
+    DB_AUTO,      /* Auto-detect based on file extension */
+    DB_SQLITE,    /* Force SQLite */
+    DB_DUCKDB     /* Force DuckDB */
+} DatabaseMode;
+
+/* Global database mode - can be set before app_module_init() */
+static DatabaseMode g_database_mode = DB_AUTO;
+
+/* Get database mode */
+static inline DatabaseMode app_get_database_mode(void) {
+    return g_database_mode;
+}
+
+/* Set database mode */
+static inline void app_set_database_mode(DatabaseMode mode) {
+    g_database_mode = mode;
+}
+
 /* Forward declare service providers */
 DI_Error logger_service_provider(DI_Container* container, void** out_service);
 void logger_service_destroy(DI_Service* service);

@@ -1,6 +1,7 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, type OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DataTableComponent, type TableColumn, type TableAction } from '../shared/data-table.component';
 import { LoggerService } from '../../core/logger.service';
 import { NotificationService } from '../../core/notification.service';
 import { ApiService } from '../../core/api.service';
@@ -22,184 +23,298 @@ export interface UserStats {
 @Component({
   selector: 'app-sqlite-crud',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DataTableComponent],
   template: `
-    <div class="sqlite-wrapper">
-      <div class="sqlite-container">
-        <div class="sqlite-header">
-          <div class="sqlite-logo">
-            <span class="logo-icon">🗄️</span>
-          </div>
-          <h1 class="sqlite-title">SQLite CRUD Demo</h1>
-          <p class="sqlite-subtitle">Complete CRUD operations with Vlang backend</p>
-        </div>
-
-        <div class="stats-bar">
-          <div class="stat-item">
+    <div class="crud-wrapper">
+      <div class="stats-cards">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #3b82f6;">👥</div>
+          <div class="stat-content">
             <span class="stat-value">{{ stats().total_users }}</span>
             <span class="stat-label">Total Users</span>
           </div>
-          <div class="stat-item">
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #10b981;">📅</div>
+          <div class="stat-content">
             <span class="stat-value">{{ stats().today_count }}</span>
             <span class="stat-label">Added Today</span>
           </div>
-          <div class="stat-item">
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #8b5cf6;">🌐</div>
+          <div class="stat-content">
             <span class="stat-value">{{ stats().unique_domains }}</span>
             <span class="stat-label">Email Domains</span>
           </div>
         </div>
+      </div>
 
-        <div class="sqlite-tabs">
-          <button type="button" class="sqlite-tab" [class.active]="activeTab() === 'list'" (click)="setActiveTab('list')">
-            <span class="tab-label">📋 User List</span>
-          </button>
-          <button type="button" class="sqlite-tab" [class.active]="activeTab() === 'create'" (click)="setActiveTab('create')">
-            <span class="tab-label">➕ Add User</span>
-          </button>
-        </div>
-
-        @if (activeTab() === 'list') {
-          <div class="tab-content">
-            <div class="toolbar">
-              <input type="text" class="search-input" placeholder="Search users..." [(ngModel)]="searchQuery"
-                (input)="filterUsers()" />
-              <button class="refresh-button" (click)="loadUsers()">🔄 Refresh</button>
+      @if (showForm()) {
+        <div class="form-modal">
+          <div class="form-container">
+            <div class="form-header">
+              <h2>{{ editingUser() ? 'Edit User' : 'Add New User' }}</h2>
+              <button class="close-btn" (click)="closeForm()">×</button>
             </div>
-
-            @if (isLoading()) {
-              <div class="loading">Loading users...</div>
-            } @else if (filteredUsers().length === 0) {
-              <div class="empty-state">No users found</div>
-            } @else {
-              <div class="user-table">
-                <div class="table-header">
-                  <div class="col">Name</div>
-                  <div class="col">Email</div>
-                  <div class="col">Age</div>
-                  <div class="col">Created</div>
-                  <div class="col">Actions</div>
+            <form class="crud-form" (ngSubmit)="saveUser()">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Name</label>
+                  <input type="text" [(ngModel)]="formData.name" name="name" required placeholder="Enter name">
                 </div>
-                @for (user of filteredUsers(); track user.id) {
-                  <div class="table-row">
-                    <div class="col">{{ user.name }}</div>
-                    <div class="col">{{ user.email }}</div>
-                    <div class="col">{{ user.age }}</div>
-                    <div class="col">{{ formatDate(user.created_at) }}</div>
-                    <div class="col actions">
-                      <button class="action-btn edit" (click)="editUser(user)">✏️</button>
-                      <button class="action-btn delete" (click)="deleteUser(user)">🗑️</button>
-                    </div>
-                  </div>
-                }
+                <div class="form-group">
+                  <label>Email</label>
+                  <input type="email" [(ngModel)]="formData.email" name="email" required placeholder="Enter email">
+                </div>
               </div>
-            }
-          </div>
-        }
-
-        @if (activeTab() === 'create') {
-          <div class="tab-content">
-            <form class="user-form" (ngSubmit)="createUser()">
-              <div class="form-group">
-                <label class="form-label">Name</label>
-                <input type="text" class="form-input" [ngModel]="newUserForm.name" (ngModelChange)="updateNewUser('name', $event)" name="name" required />
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Age</label>
+                  <input type="number" [(ngModel)]="formData.age" name="age" required min="1" max="150" placeholder="Enter age">
+                </div>
               </div>
-              <div class="form-group">
-                <label class="form-label">Email</label>
-                <input type="email" class="form-input" [ngModel]="newUserForm.email" (ngModelChange)="updateNewUser('email', $event)" name="email" required />
+              <div class="form-actions">
+                <button type="button" class="btn-cancel" (click)="closeForm()">Cancel</button>
+                <button type="submit" class="btn-submit" [disabled]="isLoading()">
+                  {{ isLoading() ? 'Saving...' : (editingUser() ? 'Update' : 'Create') }}
+                </button>
               </div>
-              <div class="form-group">
-                <label class="form-label">Age</label>
-                <input type="number" class="form-input" [ngModel]="newUserForm.age" (ngModelChange)="updateNewUser('age', $event)" name="age" required min="1" max="150" />
-              </div>
-              <button type="submit" class="submit-button" [disabled]="isLoading()">
-                {{ isLoading() ? 'Creating...' : 'Create User' }}
-              </button>
             </form>
           </div>
-        }
-      </div>
+        </div>
+      }
+
+      <app-data-table
+        [data]="users()"
+        [columns]="columns"
+        [actions]="actions"
+        [loading]="isLoading()"
+        emptyMessage="No users found. Add a new user to get started."
+        (refresh)="loadUsers()"
+        (add)="openAddForm()"
+        (edit)="openEditForm($event)"
+        (delete)="confirmDelete($event)" />
     </div>
   `,
   styles: [`
-    .sqlite-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100%; padding: 20px; }
-    .sqlite-container { background: rgba(255,255,255,0.95); border-radius: 16px; padding: 40px; width: 100%; max-width: 800px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
-    .sqlite-header { text-align: center; margin-bottom: 25px; }
-    .sqlite-logo { display: inline-flex; width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #00b09b, #96c93d); justify-content: center; align-items: center; margin-bottom: 15px; }
-    .logo-icon { font-size: 32px; }
-    .sqlite-title { font-size: 28px; margin: 0 0 8px; color: #1a1a1a; }
-    .sqlite-subtitle { font-size: 14px; color: #666; margin: 0; }
-    .stats-bar { display: flex; gap: 20px; justify-content: space-around; margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 12px; }
-    .stat-item { text-align: center; }
-    .stat-value { display: block; font-size: 24px; font-weight: bold; color: #00b09b; }
-    .stat-label { display: block; font-size: 12px; color: #666; margin-top: 4px; }
-    .sqlite-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-    .sqlite-tab { flex: 1; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; background: white; cursor: pointer; transition: all 0.2s; }
-    .sqlite-tab.active { border-color: #00b09b; background: linear-gradient(135deg, #00b09b15, #96c93d15); }
-    .tab-label { font-size: 14px; font-weight: 600; color: #333; }
-    .toolbar { display: flex; gap: 10px; margin-bottom: 15px; }
-    .search-input { flex: 1; padding: 10px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; }
-    .refresh-button { padding: 10px 20px; background: #f0f0f0; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-    .loading, .empty-state { text-align: center; padding: 40px; color: #666; }
-    .user-table { display: flex; flex-direction: column; gap: 8px; }
-    .table-header, .table-row { display: grid; grid-template-columns: 2fr 2fr 1fr 1.5fr 1fr; gap: 10px; padding: 12px; }
-    .table-header { background: #f8f9fa; border-radius: 8px; font-weight: 600; font-size: 13px; }
-    .table-row { background: white; border: 1px solid #e0e0e0; border-radius: 8px; align-items: center; }
-    .col { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .actions { display: flex; gap: 8px; }
-    .action-btn { padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
-    .action-btn.edit { background: #e3f2fd; }
-    .action-btn.delete { background: #ffebee; }
-    .user-form { display: flex; flex-direction: column; gap: 20px; }
-    .form-group { display: flex; flex-direction: column; gap: 8px; }
-    .form-label { font-weight: 600; color: #333; font-size: 14px; }
-    .form-input { padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; }
-    .form-input:focus { outline: none; border-color: #00b09b; }
-    .submit-button { padding: 14px; background: linear-gradient(135deg, #00b09b, #96c93d); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
-    .submit-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,176,155,0.4); }
-    .submit-button:disabled { opacity: 0.6; cursor: not-allowed; }
-  `],
+    .crud-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .stats-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .stat-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+
+    .stat-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .form-container {
+      background: #1e293b;
+      border-radius: 16px;
+      border: 1px solid #334155;
+      width: 100%;
+      max-width: 500px;
+      overflow: hidden;
+    }
+
+    .form-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 1.5rem;
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+    }
+
+    .form-header h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: #f8fafc;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: #64748b;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .close-btn:hover {
+      color: #e2e8f0;
+    }
+
+    .crud-form {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .form-group label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #94a3b8;
+    }
+
+    .form-group input {
+      padding: 0.75rem 1rem;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.875rem;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .form-group input::placeholder {
+      color: #64748b;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .btn-cancel {
+      padding: 0.75rem 1.25rem;
+      background: #334155;
+      border: none;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+      background: #475569;
+    }
+
+    .btn-submit {
+      padding: 0.75rem 1.25rem;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  `]
 })
-export class SqliteCrudComponent {
+export class SqliteCrudComponent implements OnInit {
   private readonly logger = inject(LoggerService);
   private readonly notifications = inject(NotificationService);
   private readonly api = inject(ApiService);
 
-  activeTab = signal<'list' | 'create'>('list');
   isLoading = signal(false);
   stats = signal<UserStats>({ total_users: 0, today_count: 0, unique_domains: 0 });
   users = signal<User[]>([]);
-  filteredUsers = signal<User[]>([]);
-  searchQuery = '';
+  showForm = signal(false);
+  editingUser = signal<User | null>(null);
 
-  newUser = signal<Partial<User>>({ name: '', email: '', age: 25 });
+  formData: Partial<User> = { name: '', email: '', age: 25 };
 
-  get newUserForm() {
-    return this.newUser();
-  }
+  columns: TableColumn[] = [
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'email', label: 'Email', type: 'email', sortable: true },
+    { key: 'age', label: 'Age', type: 'number', sortable: true, width: '100px' },
+    { key: 'created_at', label: 'Created', type: 'date', sortable: true, width: '150px' },
+  ];
 
-  updateNewUser(field: keyof User, value: string | number) {
-    this.newUser.update(u => ({ ...u, [field]: value }));
-  }
+  actions: TableAction[] = [
+    { id: 'edit', icon: '✏️', label: 'Edit', color: '#3b82f6' },
+    { id: 'delete', icon: '🗑️', label: 'Delete', color: '#ef4444' },
+  ];
 
-  setActiveTab(tab: 'list' | 'create'): void {
-    this.activeTab.set(tab);
-    if (tab === 'list') {
-      this.loadUsers();
-    }
-  }
-
-  filterUsers(): void {
-    const query = this.searchQuery.toLowerCase();
-    this.filteredUsers.set(
-      this.users().filter(u =>
-        u.name.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query)
-      )
-    );
-  }
-
-  formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString();
+  ngOnInit(): void {
+    this.loadUsers();
   }
 
   async loadUsers(): Promise<void> {
@@ -211,7 +326,6 @@ export class SqliteCrudComponent {
       ]);
       this.users.set(users);
       this.stats.set(stats);
-      this.filterUsers();
     } catch (error) {
       this.notifications.error('Failed to load users');
       this.logger.error('Load users error', error);
@@ -220,37 +334,57 @@ export class SqliteCrudComponent {
     }
   }
 
-  async createUser(): Promise<void> {
-    if (!this.newUser().name || !this.newUser().email || !this.newUser().age) {
+  openAddForm(): void {
+    this.editingUser.set(null);
+    this.formData = { name: '', email: '', age: 25 };
+    this.showForm.set(true);
+  }
+
+  openEditForm(user: User): void {
+    this.editingUser.set(user);
+    this.formData = { ...user };
+    this.showForm.set(true);
+  }
+
+  closeForm(): void {
+    this.showForm.set(false);
+    this.editingUser.set(null);
+    this.formData = { name: '', email: '', age: 25 };
+  }
+
+  async saveUser(): Promise<void> {
+    if (!this.formData.name || !this.formData.email || !this.formData.age) {
       this.notifications.error('Please fill in all fields');
       return;
     }
 
+    const isEdit = this.editingUser() !== null;
     this.isLoading.set(true);
     try {
-      await this.api.callOrThrow('createUser', [this.newUser()]);
-      this.notifications.success('User created successfully');
-      this.newUser.set({ name: '', email: '', age: 25 });
-      this.setActiveTab('list');
+      if (isEdit) {
+        await this.api.callOrThrow('updateUser', [this.formData]);
+        this.notifications.success('User updated successfully');
+      } else {
+        await this.api.callOrThrow('createUser', [this.formData]);
+        this.notifications.success('User created successfully');
+      }
+      this.closeForm();
+      await this.loadUsers();
     } catch (error) {
-      this.notifications.error('Failed to create user');
-      this.logger.error('Create user error', error);
+      this.notifications.error(isEdit ? 'Failed to update user' : 'Failed to create user');
+      this.logger.error('Save user error', error);
     } finally {
       this.isLoading.set(false);
     }
   }
 
-  async editUser(user: User): Promise<void> {
-    this.newUser.set({ ...user });
-    this.setActiveTab('create');
-    // In production: call updateUser API
+  confirmDelete(user: User): void {
+    if (confirm(`Are you sure you want to delete ${user.name}?`)) {
+      this.deleteUser(user);
+    }
   }
 
   async deleteUser(user: User): Promise<void> {
-    if (!confirm(`Delete ${user.name}?`)) {
-      return;
-    }
-
     this.isLoading.set(true);
     try {
       await this.api.callOrThrow('deleteUser', [user.id]);
@@ -262,9 +396,5 @@ export class SqliteCrudComponent {
     } finally {
       this.isLoading.set(false);
     }
-  }
-
-  ngOnInit(): void {
-    this.loadUsers();
   }
 }

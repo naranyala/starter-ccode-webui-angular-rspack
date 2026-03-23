@@ -333,4 +333,60 @@ int sqlite_vacuum(SQLiteService* self);
  */
 SQLiteResult sqlite_integrity_check(SQLiteService* self);
 
+/* ==================== Persistence Functions ==================== */
+
+/**
+ * Get database file path
+ * @param self SQLite service instance
+ * @return Database path, or NULL
+ */
+const char* sqlite_get_path(SQLiteService* self);
+
+/**
+ * Checkpoint WAL file (flush to main database)
+ * @param self SQLite service instance
+ * @param aggressive If true, use TRUNCATE mode
+ * @return 1 on success, 0 on failure
+ */
+int sqlite_checkpoint(SQLiteService* self, int aggressive);
+
+/**
+ * Backup database to file
+ * @param self SQLite service instance
+ * @param backup_path Path for backup file
+ * @return 1 on success, 0 on failure
+ */
+int sqlite_backup_to_file(SQLiteService* self, const char* backup_path);
+
+/**
+ * Restore database from backup
+ * @param self SQLite service instance
+ * @param backup_path Path to backup file
+ * @return 1 on success, 0 on failure
+ */
+int sqlite_restore_from_backup(SQLiteService* self, const char* backup_path);
+
+/**
+ * Get database file size
+ * @param self SQLite service instance
+ * @return Size in bytes, or -1 on error
+ */
+long long sqlite_get_file_size(SQLiteService* self);
+
+/**
+ * Get WAL file size
+ * @param self SQLite service instance
+ * @return Size in bytes, or -1 if no WAL
+ */
+long long sqlite_get_wal_size(SQLiteService* self);
+
+/**
+ * Get database status info
+ * @param self SQLite service instance
+ * @param page_count Output: number of pages
+ * @param freelist_count Output: free pages
+ * @param schema_version Output: schema version
+ */
+void sqlite_get_status(SQLiteService* self, int* page_count, int* freelist_count, int* schema_version);
+
 #endif /* SQLITE_SERVICE_H */

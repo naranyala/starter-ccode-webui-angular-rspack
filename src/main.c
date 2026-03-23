@@ -16,7 +16,9 @@
 #include "services/json_service.h"
 #include "services/hash_service.h"
 #include "services/sqlite_service.h"
+#include "services/duckdb_service.h"
 #include "services/auth_service.h"
+#include "services/crud_api.h"
 #include "migrations.h"
 
 /* Demo event handlers */
@@ -123,6 +125,14 @@ int main(void) {
     free(md5_hash);
     free(sha256_hash);
 
+    /* Set database mode - can be changed via: DB_SQLITE, DB_DUCKDB, or DB_AUTO */
+    /* Example: app_set_database_mode(DB_DUCKDB); */
+    DatabaseMode db_mode = app_get_database_mode();
+    
+    logger_log(logger, "INFO", "Database mode: %s", 
+               db_mode == DB_SQLITE ? "SQLite" : 
+               db_mode == DB_DUCKDB ? "DuckDB" : "Auto-detect");
+
     /* Inject SQLiteService and demonstrate database operations */
     SQLiteService* sqlite = sqlite_service_inject();
     if (!sqlite) {
@@ -205,6 +215,12 @@ int main(void) {
 
     /* Initialize WebUI window */
     if (webui_init_window(webui)) {
+        /* Initialize CRUD API handlers */
+        if (sqlite) {
+            crud_api_init(webui, sqlite);
+            logger_log(logger, "INFO", "CRUD API handlers bound to window");
+        }
+        
         /* Show the application */
         webui_show_content(webui, "index.html");
 

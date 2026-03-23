@@ -1,91 +1,165 @@
 # Project Documentation
 
-This directory contains comprehensive documentation for the C + Angular WebUI project.
+This directory contains comprehensive documentation for the C + Angular WebUI desktop application.
+
+## Documentation Index
+
+### Getting Started
+
+| Document | Description |
+|----------|-------------|
+| ../README.md | Project overview and quick start |
+| ../run.sh | Build script commands |
+
+### Backend Documentation
+
+| Document | Description |
+|----------|-------------|
+| backend/README.md | Backend architecture and service registry |
+| backend/di-system.md | Dependency injection system guide |
+| backend/services/ | Individual service documentation |
+
+#### Service Documentation
+
+| Service | Document |
+|---------|----------|
+| Logger | backend/services/logger.md |
+| Event | backend/services/event.md |
+| File | backend/services/file.md |
+| Timer | backend/services/timer.md |
+| JSON | backend/services/json.md |
+| Hash | backend/services/hash.md |
+| Config | backend/services/config.md |
+| HTTP | backend/services/http.md |
+| SQLite | backend/services/sqlite.md |
+| DuckDB | backend/services/duckdb.md |
+| SQL Query Builder | backend/services/sql-query-builder.md |
+| Auth | backend/services/auth.md |
+| Error | backend/services/error.md |
+| Updater | backend/services/updater.md |
+| WebUI | backend/services/webui.md |
+| CRUD API | backend/services/crud-api.md |
+
+### Frontend Documentation
+
+| Document | Description |
+|----------|-------------|
+| ../frontend/README.md | Frontend architecture |
+| frontend/services/ | Service documentation |
+| frontend/components/ | Component documentation |
+
+### Database Documentation
+
+| Document | Description |
+|----------|-------------|
+| DUCKDB_INTEGRATION.md | DuckDB setup and usage |
+| DUCKDB_QUERY_BUILDER.md | Fluent query builder API |
+
+### Testing Documentation
+
+| Document | Description |
+|----------|-------------|
+| TESTING.md | Testing infrastructure overview |
+| BACKEND_TESTING.md | Backend test suite guide |
+
+### Enterprise Features
+
+| Document | Description |
+|----------|-------------|
+| ENTERPRISE_READINESS_AUDIT.md | Enterprise readiness checklist |
+| IMPLEMENTATION_SUMMARY.md | Feature implementation details |
+| REFACTORING_SUMMARY.md | Codebase refactoring history |
 
 ## Documentation Structure
 
 ```
 docs/
-├── README.md                 # This file - Documentation index
-├── backend/                  # Backend documentation
-│   ├── README.md             # Backend overview
-│   ├── di-system.md          # Dependency Injection system guide
-│   └── services/             # Individual service documentation
-│       ├── logger.md
-│       ├── config.md
-│       ├── event.md
-│       ├── file.md
-│       ├── timer.md
-│       ├── json.md
-│       ├── hash.md
-│       ├── http.md
-│       └── webui.md
-│
-└── frontend/                 # Frontend documentation
-    ├── README.md             # Frontend overview
-    ├── services/             # Service documentation
-    │   ├── api.md
-    │   ├── cache.md
-    │   ├── query.md
-    │   └── task.md
-    └── components/           # Component documentation
-        └── app.md
+|-- README.md                      # This file - Documentation index
+|
+|-- General Documentation
+|-- BACKEND_TESTING.md           # Testing guide
+|-- TESTING.md                  # Testing infrastructure
+|-- DUCKDB_INTEGRATION.md       # DuckDB setup
+|-- DUCKDB_QUERY_BUILDER.md     # Query builder API
+|-- ENTERPRISE_READINESS_AUDIT.md
+|-- IMPLEMENTATION_SUMMARY.md
+|-- REFACTORING_SUMMARY.md
+|
+|-- backend/                     # Backend documentation
+|   |-- README.md               # Backend overview
+|   |-- di-system.md           # DI system guide
+|   |-- services/               # Service documentation
+|
+|-- frontend/                    # Frontend documentation
+    |-- README.md              # Frontend overview
+    |-- angular-architecture.md
+    |-- services/              # Service docs
+    |-- components/            # Component docs
 ```
 
-## Quick Links
+## Code Examples
 
-### Backend Documentation
-
-- [Backend Overview](backend/README.md) - Architecture and service registry
-- [DI System Guide](backend/di-system.md) - Using the dependency injection system
-- [Service Documentation](backend/services/) - Individual service guides
-
-### Frontend Documentation
-
-- [Frontend Overview](frontend/README.md) - Architecture and service registry
-- [Service Documentation](frontend/services/) - Individual service guides
-- [Component Documentation](frontend/components/) - Component guides
-
-### Additional Documentation
-
-- [AUDIT_SUMMARY.md](../AUDIT_SUMMARY.md) - Service architecture documentation
-- [src/di/README.md](../src/di/README.md) - DI system technical documentation
-- [frontend/README.md](../frontend/README.md) - Frontend-specific documentation
-- [frontend/docs/](../frontend/docs/) - Additional frontend docs
-
-## Documentation Standards
-
-### File Naming
-
-- Use lowercase with hyphens: `service-name.md`
-- Use README.md for overview files in directories
-
-### Content Structure
-
-1. Title (H1)
-2. Overview/Description
-3. API Reference
-4. Usage Examples
-5. Related Documentation
-
-### Code Examples
-
-Use fenced code blocks with language specification:
+### C (Backend)
 
 ```c
-// C code example
+// Inject and use a service
 LoggerService* logger = logger_service_inject();
+logger_log(logger, "INFO", "Message: %s", value);
+
+// Create database service
+SQLiteService* db = sqlite_service_inject();
+sqlite_open(db, "app.db");
 ```
 
+### TypeScript (Frontend)
+
 ```typescript
-// TypeScript code example
-const logger = inject(LoggerService);
+// Inject and use a service
+constructor(private api: ApiService) {}
+
+// Call backend API
+const users = await this.api.callOrThrow<User[]>('getUsers');
 ```
 
 ## Contributing to Documentation
 
 1. Keep documentation close to the code it describes
 2. Update documentation when changing functionality
-3. Use clear, concise language
+3. Use clear, concise language without emojis
 4. Include practical examples
 5. Link to related documentation
+6. Follow the naming convention: lowercase with hyphens
+
+## Quick Reference
+
+### Build Commands
+
+```bash
+./run.sh dev      # Build and run
+./run.sh build    # Build only
+./run.sh clean    # Clean artifacts
+./run.sh test    # Run tests
+```
+
+### Service Dependencies
+
+```
+WebuiService -> ConfigService, LoggerService
+    |
+    +-> CRUD_API -> SQLiteService, LoggerService
+    |
+Enterprise Services -> LoggerService
+    |
+Foundation Services -> LoggerService
+```
+
+### Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| users | User accounts |
+| categories | Product categories |
+| products | Products with categories |
+| orders | Customer orders |
+| order_items | Order line items |
+| schema_migrations | Migration tracking |

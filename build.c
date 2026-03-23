@@ -64,6 +64,47 @@ static bool build_frontend(void)
         nob_cmd_free(cmd);
     }
     
+    // Build and copy webui.js to frontend dist
+    {
+        Nob_Cmd cmd = {0};
+        nob_cmd_append(&cmd,
+            "sh", "-c",
+            "cd thirdparty/webui/bridge && "
+            "[ -f node_modules/.bin/esbuild ] || npm install esbuild > /dev/null 2>&1 && "
+            "./node_modules/.bin/esbuild --bundle --target=chrome90 --format=esm --tree-shaking=false --outdir=. ./webui.ts 2>/dev/null && "
+            "cp webui.js ../../..",
+            NULL
+        );
+        if (!nob_cmd_run(&cmd)) {
+            nob_log(NOB_WARNING, "webui.js build failed");
+        }
+        nob_cmd_free(cmd);
+    }
+    
+    // Copy webui.js to frontend dist
+    {
+        Nob_Cmd cmd = {0};
+        nob_cmd_append(&cmd, "cp", "thirdparty/webui/bridge/webui.js", "frontend/dist/browser/", NULL);
+        nob_cmd_run(&cmd);
+        nob_cmd_free(cmd);
+    }
+    
+    // Patch index.html to include webui.js
+    {
+        Nob_Cmd cmd = {0};
+        nob_cmd_append(&cmd,
+            "sh", "-c",
+            "if [ -f frontend/dist/browser/webui.js ] && [ -f frontend/dist/browser/index.html ]; then "
+            "sed -i 's|<script src=\"polyfills|<script src=\"webui.js\"></script><script src=\"polyfills|' frontend/dist/browser/index.html; "
+            "echo 'Patched index.html with webui.js'; fi",
+            NULL
+        );
+        if (!nob_cmd_run(&cmd)) {
+            nob_log(NOB_WARNING, "Failed to patch index.html");
+        }
+        nob_cmd_free(cmd);
+    }
+    
     return true;
 }
 
@@ -172,6 +213,7 @@ static bool build_main(void)
         "src/services/auth_service.c",
         "src/services/error_service.c",
         "src/services/updater_service.c",
+        "src/services/crud_api.c",
         "src/di/di_impl.c",
         "-I./src",
         "-I./thirdparty/webui/include/",
