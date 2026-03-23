@@ -34,6 +34,18 @@ void json_service_destroy(DI_Service* service);
 DI_Error hash_service_provider(DI_Container* container, void** out_service);
 void hash_service_destroy(DI_Service* service);
 
+DI_Error sqlite_service_provider(DI_Container* container, void** out_service);
+void sqlite_service_destroy(DI_Service* service);
+
+DI_Error auth_service_provider(DI_Container* container, void** out_service);
+void auth_service_destroy(DI_Service* service);
+
+DI_Error error_service_provider(DI_Container* container, void** out_service);
+void error_service_destroy(DI_Service* service);
+
+DI_Error updater_service_provider(DI_Container* container, void** out_service);
+void updater_service_destroy(DI_Service* service);
+
 /**
  * Initialize the application module
  * Registers all services in the correct order (dependencies first)
@@ -151,6 +163,54 @@ static inline int app_module_init(void) {
     );
     if (err != DI_OK) {
         fprintf(stderr, "Failed to register WebuiService: %s\n", DI_Error_Message(err));
+        return 1;
+    }
+
+    err = DI_Container_Register(
+        container,
+        "sqlite_service",
+        DI_SCOPE_SINGLETON,
+        sqlite_service_provider,
+        sqlite_service_destroy
+    );
+    if (err != DI_OK) {
+        fprintf(stderr, "Failed to register SQLiteService: %s\n", DI_Error_Message(err));
+        return 1;
+    }
+
+    err = DI_Container_Register(
+        container,
+        "auth_service",
+        DI_SCOPE_SINGLETON,
+        auth_service_provider,
+        auth_service_destroy
+    );
+    if (err != DI_OK) {
+        fprintf(stderr, "Failed to register AuthService: %s\n", DI_Error_Message(err));
+        return 1;
+    }
+
+    err = DI_Container_Register(
+        container,
+        "error_service",
+        DI_SCOPE_SINGLETON,
+        error_service_provider,
+        error_service_destroy
+    );
+    if (err != DI_OK) {
+        fprintf(stderr, "Failed to register ErrorService: %s\n", DI_Error_Message(err));
+        return 1;
+    }
+
+    err = DI_Container_Register(
+        container,
+        "updater_service",
+        DI_SCOPE_SINGLETON,
+        updater_service_provider,
+        updater_service_destroy
+    );
+    if (err != DI_OK) {
+        fprintf(stderr, "Failed to register UpdaterService: %s\n", DI_Error_Message(err));
         return 1;
     }
 

@@ -15,6 +15,9 @@
 #include "services/http_service.h"
 #include "services/json_service.h"
 #include "services/hash_service.h"
+#include "services/sqlite_service.h"
+#include "services/auth_service.h"
+#include "migrations.h"
 
 /* Demo event handlers */
 static void on_app_event(const char* event, const char* payload, void* user_data) {
@@ -119,6 +122,78 @@ int main(void) {
     logger_log(logger, "INFO", "SHA256 of '%s': %s", test_data, sha256_hash);
     free(md5_hash);
     free(sha256_hash);
+
+    /* Inject SQLiteService and demonstrate database operations */
+    SQLiteService* sqlite = sqlite_service_inject();
+    if (!sqlite) {
+        logger_log(logger, "ERROR", "Failed to inject SQLiteService");
+        app_module_destroy();
+        return 1;
+    }
+
+    /* Open database */
+    if (sqlite_open(sqlite, "app.db")) {
+        logger_log(logger, "INFO", "SQLite: Database opened successfully");
+
+        /* Run migrations */
+        if (sqlite_migrate(sqlite, migrations, migrations_count, -1)) {
+            int version = sqlite_get_version(sqlite);
+            logger_log(logger, "INFO", "SQLite: Database migrated to version %d", version);
+
+            /* Demo: Create a test user via AuthService */
+            AuthService* auth = auth_service_inject();
+            if (auth) {
+                logger_log(logger, "INFO", "AuthService injected successfully");
+
+                /* Demo registration */
+                AuthRegisterData reg_data = {
+                    .username = "admin",
+                    .email = "admin@example.com",
+                    .password = "Admin123!"
+                };
+
+                AuthUser* new_user = NULL;
+                char* reg_error = NULL;
+
+                if (auth_register(auth, &reg_data, &new_user, &reg_error)) {
+                    logger_log(logger, "INFO", "Auth: Registered user '%s' (id: %lld)",
+                               new_user->username, new_user->id);
+                    auth_free_user(new_user);
+                } else {
+                    logger_log(logger, "WARN", "Auth: Registration failed: %s",
+                               reg_error ? reg_error : "unknown error");
+                    free(reg_error);
+                }
+
+                /* Demo login */
+                AuthLoginCredentials login_creds = {
+                    .username_or_email = "admin",
+                    .password = "Admin123!"
+                };
+
+                AuthToken* token = NULL;
+                AuthUser* logged_user = NULL;
+                char* login_error = NULL;
+
+                if (auth_login(auth, &login_creds, &token, &logged_user, &login_error)) {
+                    logger_log(logger, "INFO", "Auth: Login successful for user '%s'",
+                               logged_user->username);
+                    logger_log(logger, "INFO", "Auth: Access token generated (expires: %ld)",
+                               (long)token->expires_at);
+                    auth_free_token(token);
+                    auth_free_user(logged_user);
+                } else {
+                    logger_log(logger, "WARN", "Auth: Login failed: %s",
+                               login_error ? login_error : "unknown error");
+                    free(login_error);
+                }
+            }
+        } else {
+            logger_log(logger, "ERROR", "SQLite: Migration failed: %s", sqlite_last_error(sqlite));
+        }
+    } else {
+        logger_log(logger, "ERROR", "SQLite: Failed to open database: %s", sqlite_last_error(sqlite));
+    }
 
     /* Inject WebuiService */
     WebuiService* webui = webui_service_inject();

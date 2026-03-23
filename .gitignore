@@ -4,8 +4,8 @@ frontend/node_modules
 frontend/dist
 frontend/.angular
 
-
 thirdparty/*duckdb*
+thirdparty/*sqlite*
 
 nob
 build_runner

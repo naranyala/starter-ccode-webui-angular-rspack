@@ -9,6 +9,7 @@ typedef enum {
     BUILD_CMD_CLEAN,
     BUILD_CMD_EXECUTE,
     BUILD_CMD_REBUILD,
+    BUILD_CMD_TEST,
     BUILD_CMD_HELP,
 } Build_Cmd;
 
@@ -21,6 +22,7 @@ static void print_help(const char *program)
     printf("  clean    - Remove build artifacts\n");
     printf("  run      - Build and run the application\n");
     printf("  rebuild  - Clean and rebuild\n");
+    printf("  test     - Run backend tests\n");
     printf("  help     - Show this help message\n");
 }
 
@@ -134,6 +136,23 @@ static bool build_main(void)
 {
     nob_log(NOB_INFO, "Building main program with DI services...");
 
+    // Compile SQLite amalgamation
+    {
+        Nob_Cmd cmd = {0};
+        nob_cmd_append(&cmd,
+            "gcc",
+            "-c",
+            "-o", "build/sqlite3.o",
+            "-I./thirdparty/sqlite-amalgamation-3510300/",
+            "./thirdparty/sqlite-amalgamation-3510300/sqlite3.c"
+        );
+        if (!nob_cmd_run(&cmd)) {
+            nob_cmd_free(cmd);
+            return false;
+        }
+        nob_cmd_free(cmd);
+    }
+
     Nob_Cmd cmd = {0};
     nob_cmd_append(&cmd,
         "gcc",
@@ -149,10 +168,121 @@ static bool build_main(void)
         "src/services/http_service.c",
         "src/services/json_service.c",
         "src/services/hash_service.c",
+        "src/services/sqlite_service.c",
+        "src/services/auth_service.c",
+        "src/services/error_service.c",
+        "src/services/updater_service.c",
         "src/di/di_impl.c",
         "-I./src",
         "-I./thirdparty/webui/include/",
+        "-I./thirdparty/sqlite-amalgamation-3510300/",
         "-L./build", "-lwebui-2",
+        "build/sqlite3.o",
+        "-lpthread", "-ldl"
+    );
+    if (!nob_cmd_run(&cmd)) {
+        nob_cmd_free(cmd);
+        return false;
+    }
+    nob_cmd_free(cmd);
+
+    return true;
+}
+
+static bool build_tests(void)
+{
+    nob_log(NOB_INFO, "Building comprehensive test runner...");
+
+    // Compile SQLite amalgamation (if not already compiled)
+    if (!nob_file_exists("build/sqlite3.o")) {
+        Nob_Cmd cmd = {0};
+        nob_cmd_append(&cmd,
+            "gcc",
+            "-c",
+            "-o", "build/sqlite3.o",
+            "-I./thirdparty/sqlite-amalgamation-3510300/",
+            "./thirdparty/sqlite-amalgamation-3510300/sqlite3.c"
+        );
+        if (!nob_cmd_run(&cmd)) {
+            nob_cmd_free(cmd);
+            return false;
+        }
+        nob_cmd_free(cmd);
+    }
+
+    /* Build individual test suites */
+    const char* test_suites[] = {
+        "logger", "event", "file", "timer", "json", "hash",
+        "sqlite", "auth", "error", "updater"
+    };
+
+    for (int i = 0; i < 10; i++) {
+        char output_path[256], source_path[256];
+        snprintf(output_path, sizeof(output_path), "build/test_%s", test_suites[i]);
+        snprintf(source_path, sizeof(source_path), "src/tests/suites/test_%s.c", test_suites[i]);
+
+        Nob_Cmd cmd = {0};
+        nob_cmd_append(&cmd,
+            "gcc",
+            "-Wall", "-Wextra", "-g",
+            "-o", output_path,
+            source_path,
+            "src/services/logger_service.c",
+            "src/services/config_service.c",
+            "src/services/webui_service.c",
+            "src/services/event_service.c",
+            "src/services/file_service.c",
+            "src/services/timer_service.c",
+            "src/services/http_service.c",
+            "src/services/json_service.c",
+            "src/services/hash_service.c",
+            "src/services/sqlite_service.c",
+            "src/services/auth_service.c",
+            "src/services/error_service.c",
+            "src/services/updater_service.c",
+            "src/di/di_impl.c",
+            "-I./src",
+            "-I./thirdparty/webui/include/",
+            "-I./thirdparty/sqlite-amalgamation-3510300/",
+            "-L./build", "-lwebui-2",
+            "build/sqlite3.o",
+            "-lpthread", "-ldl"
+        );
+        if (!nob_cmd_run(&cmd)) {
+            nob_cmd_free(cmd);
+            return false;
+        }
+        nob_cmd_free(cmd);
+    }
+
+    /* Build comprehensive test runner */
+    nob_log(NOB_INFO, "Building comprehensive test runner...");
+
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd,
+        "gcc",
+        "-Wall", "-Wextra", "-g",
+        "-o", "build/test_all",
+        "src/tests/test_all.c",
+        "src/services/logger_service.c",
+        "src/services/config_service.c",
+        "src/services/webui_service.c",
+        "src/services/event_service.c",
+        "src/services/file_service.c",
+        "src/services/timer_service.c",
+        "src/services/http_service.c",
+        "src/services/json_service.c",
+        "src/services/hash_service.c",
+        "src/services/sqlite_service.c",
+        "src/services/auth_service.c",
+        "src/services/error_service.c",
+        "src/services/updater_service.c",
+        "src/di/di_impl.c",
+        "-I./src",
+        "-I./thirdparty/webui/include/",
+        "-I./thirdparty/sqlite-amalgamation-3510300/",
+        "-L./build", "-lwebui-2",
+        "build/sqlite3.o",
         "-lpthread", "-ldl"
     );
     if (!nob_cmd_run(&cmd)) {
@@ -294,6 +424,31 @@ static int do_rebuild(void)
     return do_dev();
 }
 
+static int do_test(void)
+{
+    nob_mkdir_if_not_exists("build");
+
+    if (!build_webui_lib()) {
+        nob_log(NOB_ERROR, "Failed to build WebUI library");
+        return 1;
+    }
+
+    if (!build_tests()) {
+        nob_log(NOB_ERROR, "Failed to build test runners");
+        return 1;
+    }
+
+    nob_log(NOB_INFO, "Running comprehensive test suite...");
+    printf("\n");
+
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, "./build/test_all", NULL);
+    int result = nob_cmd_run(&cmd);
+    nob_cmd_free(cmd);
+
+    return result ? 1 : 0;
+}
+
 int main(int argc, char **argv)
 {
     NOB_GO_REBUILD_URSELF(argc, argv);
@@ -311,6 +466,8 @@ int main(int argc, char **argv)
             cmd = BUILD_CMD_EXECUTE;
         } else if (strcmp(argv[1], "rebuild") == 0) {
             cmd = BUILD_CMD_REBUILD;
+        } else if (strcmp(argv[1], "test") == 0) {
+            cmd = BUILD_CMD_TEST;
         } else if (strcmp(argv[1], "help") == 0 || strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
             cmd = BUILD_CMD_HELP;
         } else {
@@ -331,6 +488,8 @@ int main(int argc, char **argv)
             return do_run();
         case BUILD_CMD_REBUILD:
             return do_rebuild();
+        case BUILD_CMD_TEST:
+            return do_test();
         case BUILD_CMD_HELP:
             print_help(argv[0]);
             return 0;
