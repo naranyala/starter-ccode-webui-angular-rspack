@@ -1,19 +1,3 @@
-/* Global Styles - Dark Gray Theme */
-:root {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #252525;
-  --bg-tertiary: #2d2d2d;
-  --bg-hover: #333333;
-  --bg-active: #3a3a3a;
-  --border-color: rgba(255, 255, 255, 0.06);
-  --text-primary: #e0e0e0;
-  --text-secondary: #a0a0a0;
-  --text-muted: #707070;
-  --accent-color: #5b8def;
-  --accent-hover: #6b9dff;
-  --accent-bg: rgba(91, 141, 239, 0.15);
-}
-
 * {
   box-sizing: border-box;
 }
@@ -23,32 +7,24 @@ body {
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
     "Helvetica Neue", sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: #0d1117;
+  color: #e6edf3;
   line-height: 1.6;
 }
 
-/* Hide WinBox minimized titlebars globally */
-.winbox.min,
-body > .winbox.min {
-  display: none;
+.shiki {
+  background-color: #0d1117 !important;
+  overflow-x: auto;
 }
 
-/* Scrollbar styling for dark theme */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.shiki code {
+  font-family: "Fira Code", "JetBrains Mono", "Monaco", "Menlo", monospace;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--bg-tertiary);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--bg-hover);
+pre.shiki {
+  padding: 16px;
+  margin: 0;
+  background: transparent !important;
 }

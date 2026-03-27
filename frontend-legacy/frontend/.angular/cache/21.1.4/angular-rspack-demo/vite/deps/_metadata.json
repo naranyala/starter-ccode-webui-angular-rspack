@@ -1,0 +1,52 @@
+{
+  "hash": "a3e9e5be",
+  "configHash": "8c189496",
+  "lockfileHash": "8627f37c",
+  "browserHash": "3954e1f5",
+  "optimized": {
+    "@angular/compiler": {
+      "src": "../../../../../../node_modules/@angular/compiler/fesm2022/compiler.mjs",
+      "file": "@angular_compiler.js",
+      "fileHash": "01df74d9",
+      "needsInterop": false
+    },
+    "@angular/core": {
+      "src": "../../../../../../node_modules/@angular/core/fesm2022/core.mjs",
+      "file": "@angular_core.js",
+      "fileHash": "927d701b",
+      "needsInterop": false
+    },
+    "@angular/platform-browser": {
+      "src": "../../../../../../node_modules/@angular/platform-browser/fesm2022/platform-browser.mjs",
+      "file": "@angular_platform-browser.js",
+      "fileHash": "c041cbe5",
+      "needsInterop": false
+    },
+    "@svgdotjs/svg.js": {
+      "src": "../../../../../../node_modules/@svgdotjs/svg.js/src/main.js",
+      "file": "@svgdotjs_svg__js.js",
+      "fileHash": "1787e2c2",
+      "needsInterop": false
+    },
+    "winbox": {
+      "src": "../../../../../../node_modules/winbox/dist/winbox.bundle.min.js",
+      "file": "winbox.js",
+      "fileHash": "0d4ba476",
+      "needsInterop": true
+    },
+    "zone.js": {
+      "src": "../../../../../../node_modules/zone.js/fesm2015/zone.js",
+      "file": "zone__js.js",
+      "fileHash": "d4cb1c67",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-Q6KCGUI4": {
+      "file": "chunk-Q6KCGUI4.js"
+    },
+    "chunk-CX3I3NQG": {
+      "file": "chunk-CX3I3NQG.js"
+    }
+  }
+}

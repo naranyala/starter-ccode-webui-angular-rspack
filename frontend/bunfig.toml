@@ -7,3 +7,7 @@ prefer-offline = true
 [run]
 # Use Bun's JavaScript runtime
 shell = "bun"
+
+[test]
+# Test configuration - run only the consolidated test file
+root = "./src/app"
