@@ -1,0 +1,499 @@
+<div class="app-container">
+  <!-- Mobile Header -->
+  <header class="mobile-header">
+    <button type="button" class="mobile-header__menu" (click)="toggleMobileMenu()" aria-label="Toggle menu">
+      <lucide-angular [img]="icons.Menu" size="24"></lucide-angular>
+    </button>
+    <h1 class="mobile-header__title">{{ getPageTitle() }}</h1>
+  </header>
+
+  <!-- Mobile Menu Overlay -->
+  <div class="mobile-overlay" [class.mobile-overlay--visible]="mobileMenuOpen()" (click)="closeMobileMenu()"></div>
+
+  <!-- Mobile Menu Panel -->
+  <aside class="mobile-menu" [class.mobile-menu--visible]="mobileMenuOpen()">
+    <div class="mobile-menu__header">
+      <h2>Menu</h2>
+      <button type="button" class="mobile-menu__close" (click)="closeMobileMenu()" aria-label="Close menu">
+        <lucide-angular [img]="icons.X" size="20"></lucide-angular>
+      </button>
+    </div>
+    <nav class="mobile-menu__nav">
+      @for (item of mainMenus(); track item.id) {
+        <button type="button" class="mobile-menu-item" [class.mobile-menu-item--active]="activeView() === item.id" (click)="selectMenuItem(item.id)">
+          <lucide-angular [img]="getIcon(item.icon)" size="20"></lucide-angular>
+          <span>{{ item.label }}</span>
+        </button>
+      }
+      <div class="mobile-menu__divider"></div>
+      @for (item of supportMenus(); track item.id) {
+        <button type="button" class="mobile-menu-item" [class.mobile-menu-item--active]="activeView() === item.id" (click)="selectMenuItem(item.id)">
+          <lucide-angular [img]="getIcon(item.icon)" size="20"></lucide-angular>
+          <span>{{ item.label }}</span>
+        </button>
+      }
+    </nav>
+  </aside>
+
+  <!-- Desktop Sidebar -->
+  <aside class="sidebar" [class.sidebar--collapsed]="sidebarCollapsed()">
+    <div class="sidebar__content">
+      <nav class="sidebar__nav">
+        @for (item of mainMenus(); track item.id) {
+          <button type="button" class="sidebar__item" [class.sidebar__item--active]="activeView() === item.id" (click)="setActiveView(item.id)">
+            <lucide-angular [img]="getIcon(item.icon)" size="22"></lucide-angular>
+            @if (!sidebarCollapsed()) {
+              <span>{{ item.label }}</span>
+            }
+          </button>
+        }
+      </nav>
+      <nav class="sidebar__nav sidebar__nav--bottom">
+        @for (item of supportMenus(); track item.id) {
+          <button type="button" class="sidebar__item" [class.sidebar__item--active]="activeView() === item.id" (click)="setActiveView(item.id)">
+            <lucide-angular [img]="getIcon(item.icon)" size="22"></lucide-angular>
+            @if (!sidebarCollapsed()) {
+              <span>{{ item.label }}</span>
+            }
+          </button>
+        }
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    <div class="content-container">
+      @if (activeView() === 'home') {
+        <div class="page">
+          <div class="page__header">
+            <lucide-angular [img]="icons.Home" size="32"></lucide-angular>
+            <h1>C + Angular WebUI Project</h1>
+          </div>
+          <p class="page__description">A full-stack desktop application with C backend using WebUI and Angular frontend with Rspack bundler.</p>
+          
+          <div class="feature-grid">
+            <div class="feature-card" (click)="setActiveView('sqlite')">
+              <div class="feature-card__icon" style="background: linear-gradient(135deg, #00b09b, #96c93d);">
+                <lucide-angular [img]="icons.Database" size="24" color="white"></lucide-angular>
+              </div>
+              <h3>SQLite CRUD</h3>
+              <p>Full CRUD operations with SQLite database, migrations, and seed data</p>
+            </div>
+
+            <div class="feature-card" (click)="setActiveView('duckdb')">
+              <div class="feature-card__icon" style="background: linear-gradient(135deg, #96c93d, #00b09b);">
+                <lucide-angular [img]="icons.Layers" size="24" color="white"></lucide-angular>
+              </div>
+              <h3>DuckDB Analytics</h3>
+              <p>High-performance analytical queries with DuckDB integration</p>
+            </div>
+
+            <div class="feature-card" (click)="setActiveView('query-builder')">
+              <div class="feature-card__icon" style="background: linear-gradient(135deg, #f59e0b, #f97316);">
+                <lucide-angular [img]="icons.FileText" size="24" color="white"></lucide-angular>
+              </div>
+              <h3>Query Builder</h3>
+              <p>Fluent API for building complex SQL queries programmatically</p>
+            </div>
+
+            <div class="feature-card" (click)="setActiveView('auth')">
+              <div class="feature-card__icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                <lucide-angular [img]="icons.Shield" size="24" color="white"></lucide-angular>
+              </div>
+              <h3>Authentication</h3>
+              <p>JWT-based authentication with password hashing and user management</p>
+            </div>
+
+            <div class="feature-card" (click)="setActiveView('services')">
+              <div class="feature-card__icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                <lucide-angular [img]="icons.Cpu" size="24" color="white"></lucide-angular>
+              </div>
+              <h3>DI Services</h3>
+              <p>16+ dependency-injected services for various functionality</p>
+            </div>
+
+            <div class="feature-card" (click)="setActiveView('devtools')">
+              <div class="feature-card__icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                <lucide-angular [img]="icons.Terminal" size="24" color="white"></lucide-angular>
+              </div>
+              <h3>DevTools</h3>
+              <p>Debugging utilities, logging, and development helpers</p>
+            </div>
+          </div>
+
+          <div class="info-section">
+            <h2>Quick Stats</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <span class="stat-card__value">16+</span>
+                <span class="stat-card__label">DI Services</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__value">6</span>
+                <span class="stat-card__label">Database Tables</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__value">Angular v21</span>
+                <span class="stat-card__label">Frontend</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__value">Rspack</span>
+                <span class="stat-card__label">Bundler</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeView() === 'sqlite') {
+        <div class="page">
+          <div class="page__header">
+            <lucide-angular [img]="icons.Database" size="32"></lucide-angular>
+            <h1>SQLite Database</h1>
+          </div>
+          <p class="page__description">Full CRUD operations with SQLite, including migrations and seed data.</p>
+
+          <div class="content-section">
+            <h2>Database Tables</h2>
+            <div class="table-list">
+              @for (table of databaseTables; track table.name) {
+                <div class="table-item">
+                  <div class="table-item__header">
+                    <lucide-angular [img]="icons.Table" size="18"></lucide-angular>
+                    <span class="table-item__name">{{ table.name }}</span>
+                  </div>
+                  <p class="table-item__description">{{ table.description }}</p>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="content-section">
+            <h2>Features</h2>
+            <ul class="feature-list">
+              <li>SQLite amalgamation integration</li>
+              <li>Automatic migrations with version tracking</li>
+              <li>Seed data with sample users, products, and orders</li>
+              <li>CRUD API handlers via WebUI bindings</li>
+              <li>User statistics endpoint</li>
+            </ul>
+          </div>
+        </div>
+      }
+
+      @if (activeView() === 'duckdb') {
+        <div class="page">
+          <div class="page__header">
+            <lucide-angular [img]="icons.Layers" size="32"></lucide-angular>
+            <h1>DuckDB Analytics</h1>
+          </div>
+          <p class="page__description">High-performance analytical queries with DuckDB integration.</p>
+
+          <div class="content-section">
+            <h2>Features</h2>
+            <div class="feature-grid feature-grid--small">
+              @for (feature of duckdbFeatures; track feature.name) {
+                <div class="info-card">
+                  <h3>{{ feature.name }}</h3>
+                  <p>{{ feature.description }}</p>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="content-section">
+            <h2>Usage</h2>
+            <div class="code-block">
+              <pre ngNonBindable>// DuckDB service is available via DI
+DuckDBService* duckdb = duckdb_service_inject();
+if (duckdb_open(duckdb, "data.duckdb")) &#123;
+    // Execute analytical queries
+&#125;</pre>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeView() === 'query-builder') {
+        <div class="page">
+          <div class="page__header">
+            <lucide-angular [img]="icons.FileText" size="32"></lucide-angular>
+            <h1>SQL Query Builder</h1>
+          </div>
+          <p class="page__description">Fluent API for building complex SQL queries programmatically.</p>
+
+          <div class="content-section">
+            <h2>Query Builder API</h2>
+            <div class="code-block">
+              <pre>// Fluent SQL builder
+sql_builder_t query = sql_builder_select("*")
+    .from("users")
+    .where("age > ?", 18)
+    .order_by("name", ASC)
+    .limit(10);
+
+const char* sql = sql_builder_finalize(&amp;query);
+// SELECT * FROM users WHERE age > ? ORDER BY name ASC LIMIT 10</pre>
+            </div>
+          </div>
+
+          <div class="content-section">
+            <h2>Supported Operations</h2>
+            <ul class="feature-list">
+              <li>SELECT with column selection and wildcards</li>
+              <li>INSERT with value binding</li>
+              <li>UPDATE with WHERE clauses</li>
+              <li>DELETE with conditions</li>
+              <li>JOIN operations</li>
+              <li>Parameter binding for SQL injection prevention</li>
+            </ul>
+          </div>
+        </div>
+      }
+
+      @if (activeView() === 'auth') {
+        <div class="page">
+          <div class="page__header">
+            <lucide-angular [img]="icons.Shield" size="32"></lucide-angular>
+            <h1>Authentication System</h1>
+          </div>
+          <p class="page__description">JWT-based authentication with password hashing and user management.</p>
+
+          <div class="content-section">
+            <h2>Features</h2>
+            <div class="feature-grid feature-grid--small">
+              @for (feature of authFeatures; track feature.name) {
+                <div class="info-card">
+                  <h3>{{ feature.name }}</h3>
+                  <p>{{ feature.description }}</p>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="content-section">
+            <h2>API Endpoints</h2>
+            <div class="api-list">
+              <div class="api-item">
+                <span class="api-method api-method--post">POST</span>
+                <code>auth/register</code>
+                <span>Create new user account</span>
+              </div>
+              <div class="api-item">
+                <span class="api-method api-method--post">POST</span>
+                <code>auth/login</code>
+                <span>Authenticate and get JWT token</span>
+              </div>
+              <div class="api-item">
+                <span class="api-method api-method--get">GET</span>
+                <code>auth/me</code>
+                <span>Get current user info</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeView() === 'devtools') {
+        <div class="page">
+          <div class="page__header">
+            <lucide-angular [img]="icons.Terminal" size="32"></lucide-angular>
+            <h1>Developer Tools</h1>
+          </div>
+          <p class="page__description">Debugging utilities, logging, and development helpers.</p>
+
+          <div class="content-section">
+            <h2>Available Tools</h2>
+            <div class="tool-list">
+              <div class="tool-item">
+                <h3>Logger Service</h3>
+                <p>Centralized logging with levels (INFO, WARN, ERROR, DEBUG) and timestamps</p>
+              </div>
+              <div class="tool-item">
+                <h3>Event Inspector</h3>
+                <p>Monitor pub/sub events in real-time</p>
+              </div>
+              <div class="tool-item">
+                <h3>Service Health</h3>
+                <p>Check status of all DI services</p>
+              </div>
+              <div class="tool-item">
+                <h3>Performance Metrics</h3>
+                <p>Track timing and memory usage</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeView() === 'services') {
+        <div class="page">
+          <div class="page__header">
+            <lucide-angular [img]="icons.Cpu" size="32"></lucide-angular>
+            <h1>DI Services</h1>
+          </div>
+          <p class="page__description">16+ dependency-injected services organized by layer.</p>
+
+          <div class="content-section">
+            <h2>Service Architecture</h2>
+            <div class="service-layers">
+              @for (layer of serviceLayers; track layer) {
+                <div class="service-layer">
+                  <h3 class="service-layer__title">{{ layer }} Services</h3>
+                  <div class="service-grid">
+                    @for (service of services; track service.name) {
+                      @if (service.layer === layer) {
+                        <div class="service-card">
+                          <h4>{{ service.name }}</h4>
+                          <p>{{ service.description }}</p>
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeView() === 'events') {
+        <div class="page">
+          <div class="page__header">
+            <lucide-angular [img]="icons.Zap" size="32"></lucide-angular>
+            <h1>Event Bus</h1>
+          </div>
+          <p class="page__description">Pub/sub event system for decoupled communication between components.</p>
+
+          <div class="content-section">
+            <h2>Usage Example</h2>
+            <div class="code-block">
+              <pre>// Subscribe to events
+event_subscribe(events, "app.started", on_app_event, user_data);
+
+// Emit events
+event_emit(events, "app.started", "Application initialized");
+
+// Get listener count
+int count = event_get_listener_count(events, "app.started");</pre>
+            </div>
+          </div>
+
+          <div class="content-section">
+            <h2>Features</h2>
+            <ul class="feature-list">
+              <li>Thread-safe event publishing</li>
+              <li>Multiple subscribers per event</li>
+              <li>Custom event payloads</li>
+              <li>User data passing to handlers</li>
+            </ul>
+          </div>
+        </div>
+      }
+
+      @if (activeView() === 'settings') {
+        <div class="page">
+          <div class="page__header">
+            <lucide-angular [img]="icons.Settings" size="32"></lucide-angular>
+            <h1>Settings</h1>
+          </div>
+          <p class="page__description">Application configuration and preferences.</p>
+
+          <div class="content-section">
+            <h2>Configuration Options</h2>
+            <div class="settings-list">
+              <div class="setting-item">
+                <div class="setting-item__info">
+                  <h3>Database Mode</h3>
+                  <p>Choose between SQLite, DuckDB, or Auto-detect</p>
+                </div>
+                <select class="setting-control">
+                  <option>Auto-detect</option>
+                  <option>SQLite</option>
+                  <option>DuckDB</option>
+                </select>
+              </div>
+              <div class="setting-item">
+                <div class="setting-item__info">
+                  <h3>Window Size</h3>
+                  <p>Default window dimensions</p>
+                </div>
+                <select class="setting-control">
+                  <option>1024x768</option>
+                  <option>1280x800</option>
+                  <option>1920x1080</option>
+                </select>
+              </div>
+              <div class="setting-item">
+                <div class="setting-item__info">
+                  <h3>Theme</h3>
+                  <p>Application color theme</p>
+                </div>
+                <select class="setting-control">
+                  <option>Dark</option>
+                  <option>Light</option>
+                  <option>System</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeView() === 'about') {
+        <div class="page">
+          <div class="page__header">
+            <lucide-angular [img]="icons.Info" size="32"></lucide-angular>
+            <h1>About</h1>
+          </div>
+          <p class="page__description">Version information and credits.</p>
+
+          <div class="content-section">
+            <h2>Technology Stack</h2>
+            <div class="tech-stack">
+              <div class="tech-item">
+                <span class="tech-item__label">Backend</span>
+                <span class="tech-item__value">C (C99)</span>
+              </div>
+              <div class="tech-item">
+                <span class="tech-item__label">Frontend</span>
+                <span class="tech-item__value">Angular v21</span>
+              </div>
+              <div class="tech-item">
+                <span class="tech-item__label">Bundler</span>
+                <span class="tech-item__value">Rspack</span>
+              </div>
+              <div class="tech-item">
+                <span class="tech-item__label">UI Bridge</span>
+                <span class="tech-item__value">WebUI 2.5</span>
+              </div>
+              <div class="tech-item">
+                <span class="tech-item__label">Database</span>
+                <span class="tech-item__value">SQLite + DuckDB</span>
+              </div>
+              <div class="tech-item">
+                <span class="tech-item__label">Package Manager</span>
+                <span class="tech-item__value">Bun</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="content-section">
+            <h2>Libraries</h2>
+            <ul class="feature-list">
+              <li><strong>nob.h</strong> - Build system (Public Domain)</li>
+              <li><strong>WebUI</strong> - UI bridge (MIT License)</li>
+              <li><strong>CivetWeb</strong> - Embedded web server</li>
+              <li><strong>stb-style DI</strong> - Dependency injection</li>
+              <li><strong>Lucide Icons</strong> - Icon library</li>
+            </ul>
+          </div>
+        </div>
+      }
+    </div>
+  </main>
+
+  <!-- Window Layer for WinBox -->
+  <div class="window-layer"></div>
+</div>

@@ -1,5 +1,6 @@
 // Modern API service with signals for backend communication
 import { Injectable, signal, computed } from '@angular/core';
+import { DEFAULT_TIMEOUT_MS } from '../app/constants/app.constants';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -18,22 +19,9 @@ export interface ApiState {
   callCount: number;
 }
 
-interface WebUI {
-  call(fn: string, ...args: unknown[]): Promise<string>;
-  isConnected(): boolean;
-}
-
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly defaultTimeout = 30000;
-  
-  private get webui(): WebUI | null {
-    return (window as any).webui;
-  }
-  
-  private get isWebUIAvailable(): boolean {
-    return this.webui !== null && this.webui !== undefined;
-  }
+  private readonly defaultTimeout = DEFAULT_TIMEOUT_MS;
   
   // Internal state signals
   private readonly loading = signal(false);
@@ -59,47 +47,65 @@ export class ApiService {
     this.error.set(null);
     this.callCount.update(count => count + 1);
     
-    const timeoutMs = options?.timeoutMs ?? this.defaultTimeout;
-    
-    try {
-      if (!this.isWebUIAvailable) {
-        throw new Error('WebUI backend not connected');
-      }
-      
-      // Check if connected
-      if (!this.webui!.isConnected()) {
-        throw new Error('WebUI not connected to backend');
-      }
-      
-      // Use Promise.race for timeout
-      const response = await Promise.race([
-        this.webui!.call(functionName, ...args),
-        new Promise<string>((_, reject) => 
-          setTimeout(() => reject(new Error(`Request timeout after ${timeoutMs}ms`)), timeoutMs)
-        )
-      ]) as string;
-      
-      this.loading.set(false);
-      this.lastCallTime.set(Date.now());
-      
-      // Parse JSON response from backend
-      const parsed = JSON.parse(response) as ApiResponse<T>;
-      
-      if (!parsed.success) {
-        this.error.set(parsed.error ?? 'Unknown error');
-      }
-      
-      return parsed;
-    } catch (error) {
-      this.loading.set(false);
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      this.error.set(errorMsg);
-      
-      return {
-        success: false,
-        error: errorMsg
+    return new Promise((resolve, reject) => {
+      const timeoutMs = options?.timeoutMs ?? this.defaultTimeout;
+      const responseEventName = `${functionName}_response`;
+
+      const handler = (event: CustomEvent<ApiResponse<T>>) => {
+        clearTimeout(timeoutId);
+        window.removeEventListener(responseEventName, handler as EventListener);
+        
+        this.loading.set(false);
+        this.lastCallTime.set(Date.now());
+        
+        if (!event.detail.success) {
+          this.error.set(event.detail.error ?? 'Unknown error');
+        }
+        
+        resolve(event.detail);
       };
-    }
+
+      const timeoutId = setTimeout(() => {
+        window.removeEventListener(responseEventName, handler as EventListener);
+        this.loading.set(false);
+        this.error.set(`Request timeout after ${timeoutMs}ms`);
+        
+        reject({
+          success: false,
+          error: `Request timeout after ${timeoutMs}ms`,
+        });
+      }, timeoutMs);
+
+      try {
+        const backendFn = (window as unknown as Record<string, unknown>)[functionName];
+
+        if (typeof backendFn !== 'function') {
+          clearTimeout(timeoutId);
+          window.removeEventListener(responseEventName, handler as EventListener);
+          this.loading.set(false);
+          this.error.set(`Backend function not found: ${functionName}`);
+          
+          reject({
+            success: false,
+            error: `Backend function not found: ${functionName}`,
+          });
+          return;
+        }
+
+        backendFn(...args);
+      } catch (error) {
+        clearTimeout(timeoutId);
+        window.removeEventListener(responseEventName, handler as EventListener);
+        this.loading.set(false);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        this.error.set(errorMsg);
+        
+        reject({
+          success: false,
+          error: errorMsg,
+        });
+      }
+    });
   }
 
   /**
@@ -111,13 +117,6 @@ export class ApiService {
       throw new Error(response.error ?? 'Unknown error');
     }
     return response.data as T;
-  }
-  
-  /**
-   * Check if backend is connected
-   */
-  isConnected(): boolean {
-    return this.isWebUIAvailable && this.webui!.isConnected();
   }
   
   /**

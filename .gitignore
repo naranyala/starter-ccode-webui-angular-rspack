@@ -5,6 +5,8 @@ frontend/dist
 frontend/.angular
 
 */node_modules/*
+*/dist/*
+*/.angular/*
 
 frontend-alt*/node_modules
 
