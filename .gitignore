@@ -6,9 +6,7 @@ frontend/.angular
 
 */node_modules/*
 
-frontend-legacy/node_modules
-frontend-legacy/dist
-frontend-legacy/.angular
+frontend-alt*/node_modules
 
 thirdparty/*duckdb*
 thirdparty/*sqlite*

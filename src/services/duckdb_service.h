@@ -13,19 +13,6 @@ typedef struct duckdb_connection *duckdb_connection;
 typedef struct duckdb_result *duckdb_result;
 typedef struct duckdb_prepared_statement *duckdb_prepared_statement;
 
-/* DuckDB type mapping */
-typedef enum {
-    DUCKDB_TYPE_BOOL = 1,
-    DUCKDB_TYPE_TINYINT = 2,
-    DUCKDB_TYPE_SMALLINT = 3,
-    DUCKDB_TYPE_INTEGER = 4,
-    DUCKDB_TYPE_BIGINT = 5,
-    DUCKDB_TYPE_FLOAT = 10,
-    DUCKDB_TYPE_DOUBLE = 11,
-    DUCKDB_TYPE_VARCHAR = 17,
-    DUCKDB_TYPE_BLOB = 18
-} DuckDBType;
-
 /* Query result row */
 typedef struct {
     char** columns;      /* Column names */

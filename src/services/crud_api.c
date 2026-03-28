@@ -396,6 +396,140 @@ static void handle_get_orders(webui_event_t* e) {
     send_response(e, build_json_response(1, json, NULL));
 }
 
+static void handle_load_demo_data(webui_event_t* e) {
+    LoggerService* logger = logger_service_inject();
+    
+    if (!g_sqlite) {
+        send_response(e, build_json_response(0, NULL, "Database not initialized"));
+        return;
+    }
+    
+    const char* demo_users[] = {
+        "INSERT OR IGNORE INTO users (name, email, age) VALUES ('Alice Johnson', 'alice@example.com', 28)",
+        "INSERT OR IGNORE INTO users (name, email, age) VALUES ('Bob Smith', 'bob@company.org', 35)",
+        "INSERT OR IGNORE INTO users (name, email, age) VALUES ('Charlie Brown', 'charlie@test.net', 42)",
+        "INSERT OR IGNORE INTO users (name, email, age) VALUES ('Diana Prince', 'diana@hero.com', 30)",
+        "INSERT OR IGNORE INTO users (name, email, age) VALUES ('Eve Adams', 'eve@secure.gov', 25)",
+        "INSERT OR IGNORE INTO users (name, email, age) VALUES ('Frank Miller', 'frank@tech.io', 38)",
+        "INSERT OR IGNORE INTO users (name, email, age) VALUES ('Grace Lee', 'grace@design.co', 29)",
+        "INSERT OR IGNORE INTO users (name, email, age) VALUES ('Henry Wilson', 'henry@data.net', 45)",
+        "INSERT OR IGNORE INTO users (name, email, age) VALUES ('Ivy Chen', 'ivy@startup.io', 27)",
+        "INSERT OR IGNORE INTO users (name, email, age) VALUES ('Jack Davis', 'jack@enterprise.com', 33)",
+        NULL
+    };
+    
+    const char* demo_categories[] = {
+        "INSERT OR IGNORE INTO categories (name, description, color, icon) VALUES ('Electronics', 'Electronic devices and accessories', '#3b82f6', 'cpu')",
+        "INSERT OR IGNORE INTO categories (name, description, color, icon) VALUES ('Clothing', 'Apparel and fashion items', '#10b981', 'shirt')",
+        "INSERT OR IGNORE INTO categories (name, description, color, icon) VALUES ('Books', 'Books and publications', '#f59e0b', 'book-open')",
+        "INSERT OR IGNORE INTO categories (name, description, color, icon) VALUES ('Home & Garden', 'Home improvement and garden', '#8b5cf6', 'home')",
+        "INSERT OR IGNORE INTO categories (name, description, color, icon) VALUES ('Sports', 'Sports and outdoor equipment', '#ef4444', 'dumbbell')",
+        NULL
+    };
+    
+    const char* demo_products[] = {
+        "INSERT OR IGNORE INTO products (name, description, price, stock, category_id, sku) VALUES ('Laptop Pro 15', 'High-performance laptop with 16GB RAM', 1299.99, 25, 1, 'ELEC-001')",
+        "INSERT OR IGNORE INTO products (name, description, price, stock, category_id, sku) VALUES ('Wireless Mouse', 'Ergonomic wireless mouse', 29.99, 150, 1, 'ELEC-002')",
+        "INSERT OR IGNORE INTO products (name, description, price, stock, category_id, sku) VALUES ('USB-C Hub', '7-in-1 USB-C hub adapter', 49.99, 80, 1, 'ELEC-003')",
+        "INSERT OR IGNORE INTO products (name, description, price, stock, category_id, sku) VALUES ('Smart Watch', 'Fitness tracking smart watch', 199.99, 60, 1, 'ELEC-004')",
+        "INSERT OR IGNORE INTO products (name, description, price, stock, category_id, sku) VALUES ('Cotton T-Shirt', 'Comfortable cotton t-shirt', 19.99, 200, 2, 'CLTH-001')",
+        "INSERT OR IGNORE INTO products (name, description, price, stock, category_id, sku) VALUES ('Denim Jeans', 'Classic fit denim jeans', 59.99, 120, 2, 'CLTH-002')",
+        "INSERT OR IGNORE INTO products (name, description, price, stock, category_id, sku) VALUES ('Running Shoes', 'Lightweight running shoes', 89.99, 75, 5, 'SPRT-001')",
+        "INSERT OR IGNORE INTO products (name, description, price, stock, category_id, sku) VALUES ('Yoga Mat', 'Non-slip yoga mat', 24.99, 100, 5, 'SPRT-002')",
+        "INSERT OR IGNORE INTO products (name, description, price, stock, category_id, sku) VALUES ('Programming Guide', 'Complete programming handbook', 44.99, 50, 3, 'BOOK-001')",
+        "INSERT OR IGNORE INTO products (name, description, price, stock, category_id, sku) VALUES ('Garden Tools Set', 'Essential garden tools kit', 69.99, 40, 4, 'HOME-001')",
+        NULL
+    };
+    
+    const char* demo_orders[] = {
+        "INSERT INTO orders (user_id, status, total_amount) VALUES (1, 'delivered', 289.97)",
+        "INSERT INTO orders (user_id, status, total_amount) VALUES (2, 'processing', 1299.99)",
+        "INSERT INTO orders (user_id, status, total_amount) VALUES (3, 'shipped', 154.97)",
+        "INSERT INTO orders (user_id, status, total_amount) VALUES (1, 'pending', 79.98)",
+        "INSERT INTO orders (user_id, status, total_amount) VALUES (4, 'delivered', 224.98)",
+        "INSERT INTO orders (user_id, status, total_amount) VALUES (5, 'cancelled', 49.99)",
+        NULL
+    };
+    
+    const char* demo_order_items[] = {
+        "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (1, 2, 2, 29.99)",
+        "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (1, 3, 1, 49.99)",
+        "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (1, 7, 1, 89.99)",
+        "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (2, 1, 1, 1299.99)",
+        "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (3, 2, 1, 29.99)",
+        "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (3, 5, 3, 19.99)",
+        "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (4, 7, 1, 89.99)",
+        "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (5, 9, 1, 44.99)",
+        "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (5, 4, 1, 199.99)",
+        NULL
+    };
+    
+    int success = 1;
+    
+    if (!sqlite_begin_transaction(g_sqlite)) {
+        send_response(e, build_json_response(0, NULL, "Failed to begin transaction"));
+        return;
+    }
+    
+    for (int i = 0; demo_users[i] && success; i++) {
+        if (!sqlite_execute(g_sqlite, demo_users[i])) {
+            success = 0;
+        }
+    }
+    
+    for (int i = 0; demo_categories[i] && success; i++) {
+        if (!sqlite_execute(g_sqlite, demo_categories[i])) {
+            success = 0;
+        }
+    }
+    
+    for (int i = 0; demo_products[i] && success; i++) {
+        if (!sqlite_execute(g_sqlite, demo_products[i])) {
+            success = 0;
+        }
+    }
+    
+    for (int i = 0; demo_orders[i] && success; i++) {
+        if (!sqlite_execute(g_sqlite, demo_orders[i])) {
+            success = 0;
+        }
+    }
+    
+    for (int i = 0; demo_order_items[i] && success; i++) {
+        if (!sqlite_execute(g_sqlite, demo_order_items[i])) {
+            success = 0;
+        }
+    }
+    
+    if (success) {
+        sqlite_commit(g_sqlite);
+        if (logger) logger_log(logger, "INFO", "Demo data loaded successfully");
+        send_response(e, build_json_response(1, "{\"message\":\"Demo data loaded\"}", NULL));
+    } else {
+        sqlite_rollback(g_sqlite);
+        if (logger) logger_log(logger, "ERROR", "Failed to load demo data");
+        send_response(e, build_json_response(0, NULL, "Failed to load demo data"));
+    }
+}
+
+static void handle_get_db_info(webui_event_t* e) {
+    if (!g_sqlite) {
+        send_response(e, build_json_response(0, NULL, "Database not initialized"));
+        return;
+    }
+    
+    const char* db_path = sqlite_get_path(g_sqlite);
+    long long db_size = sqlite_get_file_size(g_sqlite);
+    long long wal_size = sqlite_get_wal_size(g_sqlite);
+    
+    char resp[512];
+    snprintf(resp, sizeof(resp), 
+        "{\"database\":\"sqlite\",\"path\":\"%s\",\"size\":%lld,\"wal_size\":%lld}",
+        db_path ? db_path : "unknown", db_size, wal_size);
+    
+    send_response(e, build_json_response(1, resp, NULL));
+}
+
 int crud_api_init(WebuiService* webui, SQLiteService* sqlite) {
     if (!webui || !sqlite) {
         return 0;
@@ -413,9 +547,11 @@ int crud_api_init(WebuiService* webui, SQLiteService* sqlite) {
     webui_bind(webui->window, "getProducts", handle_get_products);
     webui_bind(webui->window, "getCategories", handle_get_categories);
     webui_bind(webui->window, "getOrders", handle_get_orders);
+    webui_bind(webui->window, "loadDemoData", handle_load_demo_data);
+    webui_bind(webui->window, "getDbInfo", handle_get_db_info);
     
     if (logger) {
-        logger_log(logger, "INFO", "CRUD API initialized with %d handlers", 8);
+        logger_log(logger, "INFO", "CRUD API initialized with %d handlers", 10);
     }
     
     return 1;

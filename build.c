@@ -89,13 +89,13 @@ static bool build_frontend(void)
         nob_cmd_free(cmd);
     }
     
-    // Patch index.html to include webui.js
+    // Patch index.html to include webui.js as a module
     {
         Nob_Cmd cmd = {0};
         nob_cmd_append(&cmd,
             "sh", "-c",
             "if [ -f frontend/dist/browser/webui.js ] && [ -f frontend/dist/browser/index.html ]; then "
-            "sed -i 's|<script src=\"polyfills|<script src=\"webui.js\"></script><script src=\"polyfills|' frontend/dist/browser/index.html; "
+            "sed -i 's|<script src=\"polyfills|<script src=\"webui.js\" type=\"module\"></script><script src=\"polyfills|' frontend/dist/browser/index.html; "
             "echo 'Patched index.html with webui.js'; fi",
             NULL
         );
