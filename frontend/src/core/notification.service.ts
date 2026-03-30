@@ -11,7 +11,7 @@ export interface Notification {
   providedIn: 'root'
 })
 export class NotificationService {
-  private notifications = signal<Notification[]>([]);
+  private readonly notifications = signal<Notification[]>([]);
 
   readonly notifications$ = this.notifications.asReadonly();
 

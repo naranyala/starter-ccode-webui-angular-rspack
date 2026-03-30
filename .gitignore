@@ -8,10 +8,12 @@ frontend/.angular
 */dist/*
 */.angular/*
 
-frontend-alt*/node_modules
-
 thirdparty/*duckdb*
 thirdparty/*sqlite*
+thirdparty/*.zip
+
+# Data directory
+data/
 
 nob
 build_runner
@@ -26,6 +28,8 @@ build/
 *.swp
 *.swo
 *~
+*.origin
+*.bak
 
 # OS files
 .DS_Store

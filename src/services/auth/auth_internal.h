@@ -1,7 +1,7 @@
 /* Auth Service Internal Header */
 
-#ifndef AUTH_INTERNAL_H
-#define AUTH_INTERNAL_H
+#ifndef AUTH_SERVICE_INTERNAL_H
+#define AUTH_SERVICE_INTERNAL_H
 
 #include <stdlib.h>
 #include <string.h>

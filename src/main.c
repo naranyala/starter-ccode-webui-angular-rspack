@@ -142,7 +142,7 @@ int main(void) {
     }
 
     /* Open database */
-    if (sqlite_open(sqlite, "app.db")) {
+    if (sqlite_open(sqlite, "data/app.db")) {
         logger_log(logger, "INFO", "SQLite: Database opened successfully");
 
         /* Run migrations */

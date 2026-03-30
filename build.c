@@ -2,6 +2,10 @@
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
+#define FRONTEND_DIR "frontend"
+#define FRONTEND_DIST "frontend/dist"
+#define DATA_DIR "data"
+
 typedef enum {
     BUILD_CMD_NONE = 0,
     BUILD_CMD_BUILD,
@@ -31,13 +35,13 @@ static bool build_frontend(void)
     nob_log(NOB_INFO, "Building Angular frontend...");
     
     // Check if node_modules exists, if not, install dependencies
-    if (!nob_file_exists("frontend/node_modules")) {
+    if (!nob_file_exists(FRONTEND_DIR "/node_modules")) {
         nob_log(NOB_INFO, "Frontend dependencies not found. Installing with bun...");
         
         Nob_Cmd cmd = {0};
         nob_cmd_append(&cmd,
             "sh", "-c",
-            "cd frontend && bun install",
+            "cd " FRONTEND_DIR " && bun install",
             NULL
         );
         if (!nob_cmd_run(&cmd)) {
@@ -53,7 +57,7 @@ static bool build_frontend(void)
         Nob_Cmd cmd = {0};
         nob_cmd_append(&cmd,
             "sh", "-c",
-            "cd frontend && bun run build",
+            "cd " FRONTEND_DIR " && bun run build",
             NULL
         );
         if (!nob_cmd_run(&cmd)) {

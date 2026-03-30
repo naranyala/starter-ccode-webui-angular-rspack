@@ -1,4 +1,4 @@
-import { Component, signal, inject, Input, Output, EventEmitter } from '@angular/core';
+import { Component, signal, inject, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
@@ -329,9 +329,9 @@ export interface DataTableConfig {
     }
   `]
 })
-export class DataTableComponent {
-  private api = inject(ApiService);
-  private logger = inject(LoggerService);
+export class DataTableComponent implements OnInit {
+  private readonly api = inject(ApiService);
+  private readonly logger = inject(LoggerService);
 
   @Input() config: DataTableConfig | null = null;
   @Input() items: any[] = [];

@@ -13,6 +13,7 @@ import { ApiService } from '../../core/api.service';
 import { DuckdbUsersComponent } from '../duckdb/duckdb-users.component';
 import { DuckdbProductsComponent } from '../duckdb/duckdb-products.component';
 import { DuckdbOrdersComponent } from '../duckdb/duckdb-orders.component';
+import { SqliteCrudComponent } from '../sqlite/sqlite.component';
 
 export interface DashboardStats {
   totalUsers: number;
@@ -39,6 +40,7 @@ export interface NavItem {
     DuckdbUsersComponent,
     DuckdbProductsComponent,
     DuckdbOrdersComponent,
+    SqliteCrudComponent,
   ],
   template: `
     <div class="dashboard-container">
@@ -66,10 +68,10 @@ export interface NavItem {
           }
         </div>
 
-        <!-- Thirdparty Demo Section -->
+        <!-- Database Demos Section -->
         <div class="pill-section">
           <button class="section-header" (click)="toggleDemoSection()">
-            <span class="section-title">Thirdparty Demos</span>
+            <span class="section-title">Database Demos</span>
             <span class="section-toggle">{{ demoOpen() ? '▼' : '▶' }}</span>
           </button>
           @if (demoOpen()) {
@@ -99,12 +101,14 @@ export interface NavItem {
 
         <!-- Content Area -->
         <div class="content-area" #contentArea>
-          @if (activeView() === 'demo_duckdb') {
+          @if (activeView() === 'demo_duckdb_users') {
             <app-duckdb-users [items]="users()" (statsChange)="onStatsUpdate($any($event))"></app-duckdb-users>
-          } @else if (activeView() === 'demo_sqlite') {
+          } @else if (activeView() === 'demo_duckdb_products') {
             <app-duckdb-products [items]="products()" (statsChange)="onStatsUpdate($any($event))"></app-duckdb-products>
-          } @else if (activeView() === 'demo_websocket') {
+          } @else if (activeView() === 'demo_duckdb_orders') {
             <app-duckdb-orders [items]="orders()" (statsChange)="onStatsUpdate($any($event))"></app-duckdb-orders>
+          } @else if (activeView() === 'demo_sqlite') {
+            <app-sqlite-crud></app-sqlite-crud>
           } @else {
             <markdown 
               [src]="currentMarkdownPath()" 
@@ -607,26 +611,19 @@ export class DashboardComponent implements OnInit {
 
   docItems = signal<NavItem[]>([
     { id: 'README', label: 'Overview', icon: '📖', active: true },
-    { id: 'IMPLEMENTATION_SUMMARY', label: 'Implementation', icon: '📋', active: false },
-    { id: 'REFACTORING_SUMMARY', label: 'Refactoring', icon: '♻️', active: false },
-    { id: 'TESTING', label: 'Testing', icon: '🧪', active: false },
-    { id: 'BACKEND_TESTING', label: 'Backend Tests', icon: '⚙️', active: false },
-    { id: 'DUCKDB_INTEGRATION', label: 'DuckDB Integration', icon: '🦆', active: false },
-    { id: 'DUCKDB_QUERY_BUILDER', label: 'Query Builder', icon: '🔨', active: false },
-    { id: 'DOCUMENTATION_GAP_ANALYSIS', label: 'Doc Gaps', icon: '📝', active: false },
-    { id: 'ENTERPRISE_READINESS_AUDIT', label: 'Enterprise', icon: '🏢', active: false },
-    { id: 'backend_README', label: 'Backend', icon: '🔙', active: false },
-    { id: 'backend_di-system', label: 'DI System', icon: '📦', active: false },
-    { id: 'frontend_README', label: 'Frontend', icon: '🎨', active: false },
+    { id: 'QUICKSTART', label: 'Quick Start', icon: '🚀', active: false },
+    { id: 'ARCHITECTURE', label: 'Architecture', icon: '🏗️', active: false },
+    { id: 'PROJECT_STRUCTURE', label: 'Structure', icon: '📁', active: false },
+    { id: 'DEMOS', label: 'Demos', icon: '🎯', active: false },
+    { id: 'API', label: 'API Reference', icon: '🔌', active: false },
+    { id: 'CHANGELOG', label: 'Changelog', icon: '📋', active: false },
   ]);
 
   demoItems = signal<NavItem[]>([
-    { id: 'demo_duckdb', label: 'DuckDB', icon: '🦆', active: false },
-    { id: 'demo_sqlite', label: 'SQLite', icon: '🗃️', active: false },
-    { id: 'demo_websocket', label: 'WebSocket', icon: '🔌', active: false },
-    { id: 'demo_chart', label: 'Charts', icon: '📊', active: false },
-    { id: 'demo_pdf', label: 'PDF Viewer', icon: '📄', active: false },
-    { id: 'demo_maps', label: 'Maps', icon: '🗺️', active: false },
+    { id: 'demo_duckdb_users', label: 'DuckDB Users', icon: '👥', active: false },
+    { id: 'demo_duckdb_products', label: 'DuckDB Products', icon: '📦', active: false },
+    { id: 'demo_duckdb_orders', label: 'DuckDB Orders', icon: '🛒', active: false },
+    { id: 'demo_sqlite', label: 'SQLite CRUD', icon: '🗃️', active: false },
   ]);
 
   currentPageTitle = signal('Overview');
@@ -689,10 +686,7 @@ export class DashboardComponent implements OnInit {
     if (viewId.startsWith('demo_')) {
       this.currentMarkdownPath.set('');
     } else {
-      const path = viewId.includes('_') && !viewId.startsWith('demo_')
-        ? `assets/docs/${viewId.replace('_', '/')}.md`
-        : `assets/docs/${viewId}.md`;
-      this.currentMarkdownPath.set(path);
+      this.currentMarkdownPath.set(`assets/docs/${viewId}.md`);
     }
     
     // On mobile, show content panel

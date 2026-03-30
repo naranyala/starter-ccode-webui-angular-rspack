@@ -1,4 +1,4 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LoggerService } from '../../core/logger.service';
@@ -158,7 +158,7 @@ export interface UserStats {
     .submit-button:disabled { opacity: 0.6; cursor: not-allowed; }
   `],
 })
-export class SqliteCrudComponent {
+export class SqliteCrudComponent implements OnInit {
   private readonly logger = inject(LoggerService);
   private readonly api = inject(ApiService);
 

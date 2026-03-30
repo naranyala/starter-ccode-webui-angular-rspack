@@ -11,7 +11,7 @@ export interface DevTool {
   providedIn: 'root'
 })
 export class DevtoolsService {
-  private tools = signal<DevTool[]>([
+  private readonly tools = signal<DevTool[]>([
     { id: 'console', name: 'Console', enabled: true, icon: '📝' },
     { id: 'network', name: 'Network', enabled: true, icon: '🌐' },
     { id: 'storage', name: 'Storage', enabled: true, icon: '💾' },

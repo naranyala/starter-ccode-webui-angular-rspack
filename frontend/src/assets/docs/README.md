@@ -1,165 +1,111 @@
-# Project Documentation
+# C + Angular WebUI Project
 
-This directory contains comprehensive documentation for the C + Angular WebUI desktop application.
+> A full-stack desktop application with a C backend using WebUI for native windows and an Angular 21 frontend with Rspack bundler.
 
-## Documentation Index
+## Overview
 
-### Getting Started
+This project combines modern Angular frontend with a high-performance C backend, creating a native desktop application using WebUI. It supports both SQLite and DuckDB databases with automatic migrations.
 
-| Document | Description |
-|----------|-------------|
-| ../README.md | Project overview and quick start |
-| ../run.sh | Build script commands |
+## Features
 
-### Backend Documentation
+- **Database Support**: SQLite and DuckDB with migrations
+- **Authentication**: JWT-based auth with password hashing  
+- **CRUD Operations**: Full API handlers for database operations
+- **Error Handling**: Centralized error tracking and logging
+- **Dependency Injection**: Custom DI system inspired by Angular
+- **Hot Reload**: Fast development with Rspack bundler
 
-| Document | Description |
-|----------|-------------|
-| backend/README.md | Backend architecture and service registry |
-| backend/di-system.md | Dependency injection system guide |
-| backend/services/ | Individual service documentation |
-
-#### Service Documentation
-
-| Service | Document |
-|---------|----------|
-| Logger | backend/services/logger.md |
-| Event | backend/services/event.md |
-| File | backend/services/file.md |
-| Timer | backend/services/timer.md |
-| JSON | backend/services/json.md |
-| Hash | backend/services/hash.md |
-| Config | backend/services/config.md |
-| HTTP | backend/services/http.md |
-| SQLite | backend/services/sqlite.md |
-| DuckDB | backend/services/duckdb.md |
-| SQL Query Builder | backend/services/sql-query-builder.md |
-| Auth | backend/services/auth.md |
-| Error | backend/services/error.md |
-| Updater | backend/services/updater.md |
-| WebUI | backend/services/webui.md |
-| CRUD API | backend/services/crud-api.md |
-
-### Frontend Documentation
-
-| Document | Description |
-|----------|-------------|
-| ../frontend/README.md | Frontend architecture |
-| frontend/services/ | Service documentation |
-| frontend/components/ | Component documentation |
-
-### Database Documentation
-
-| Document | Description |
-|----------|-------------|
-| DUCKDB_INTEGRATION.md | DuckDB setup and usage |
-| DUCKDB_QUERY_BUILDER.md | Fluent query builder API |
-
-### Testing Documentation
-
-| Document | Description |
-|----------|-------------|
-| TESTING.md | Testing infrastructure overview |
-| BACKEND_TESTING.md | Backend test suite guide |
-
-### Enterprise Features
-
-| Document | Description |
-|----------|-------------|
-| ENTERPRISE_READINESS_AUDIT.md | Enterprise readiness checklist |
-| IMPLEMENTATION_SUMMARY.md | Feature implementation details |
-| REFACTORING_SUMMARY.md | Codebase refactoring history |
-
-## Documentation Structure
-
-```
-docs/
-|-- README.md                      # This file - Documentation index
-|
-|-- General Documentation
-|-- BACKEND_TESTING.md           # Testing guide
-|-- TESTING.md                  # Testing infrastructure
-|-- DUCKDB_INTEGRATION.md       # DuckDB setup
-|-- DUCKDB_QUERY_BUILDER.md     # Query builder API
-|-- ENTERPRISE_READINESS_AUDIT.md
-|-- IMPLEMENTATION_SUMMARY.md
-|-- REFACTORING_SUMMARY.md
-|
-|-- backend/                     # Backend documentation
-|   |-- README.md               # Backend overview
-|   |-- di-system.md           # DI system guide
-|   |-- services/               # Service documentation
-|
-|-- frontend/                    # Frontend documentation
-    |-- README.md              # Frontend overview
-    |-- angular-architecture.md
-    |-- services/              # Service docs
-    |-- components/            # Component docs
-```
-
-## Code Examples
-
-### C (Backend)
-
-```c
-// Inject and use a service
-LoggerService* logger = logger_service_inject();
-logger_log(logger, "INFO", "Message: %s", value);
-
-// Create database service
-SQLiteService* db = sqlite_service_inject();
-sqlite_open(db, "app.db");
-```
-
-### TypeScript (Frontend)
-
-```typescript
-// Inject and use a service
-constructor(private api: ApiService) {}
-
-// Call backend API
-const users = await this.api.callOrThrow<User[]>('getUsers');
-```
-
-## Contributing to Documentation
-
-1. Keep documentation close to the code it describes
-2. Update documentation when changing functionality
-3. Use clear, concise language without emojis
-4. Include practical examples
-5. Link to related documentation
-6. Follow the naming convention: lowercase with hyphens
-
-## Quick Reference
-
-### Build Commands
+## Quick Start
 
 ```bash
-./run.sh dev      # Build and run
-./run.sh build    # Build only
-./run.sh clean    # Clean artifacts
-./run.sh test    # Run tests
+# Install dependencies
+cd frontend && bun install
+
+# Run development server
+bun run dev
+
+# Build for production
+bun run build
+
+# Run backend
+cd .. && ./run.sh dev
 ```
 
-### Service Dependencies
+## Architecture
 
 ```
-WebuiService -> ConfigService, LoggerService
-    |
-    +-> CRUD_API -> SQLiteService, LoggerService
-    |
-Enterprise Services -> LoggerService
-    |
-Foundation Services -> LoggerService
+┌─────────────────────────────────────────┐
+│         Angular 21 Frontend             │
+│  (Rspack + Signals + Standalone)       │
+└────────────────┬────────────────────────┘
+                 │ WebUI Bridge
+┌────────────────▼────────────────────────┐
+│           C Backend                    │
+│  ┌─────────────┬─────────────────┐    │
+│  │  Services   │   Database     │    │
+│  │  (16 total) │  SQLite/DuckDB │    │
+│  └─────────────┴─────────────────┘    │
+└─────────────────────────────────────────┘
 ```
 
-### Database Tables
+## Tech Stack
 
-| Table | Purpose |
-|-------|---------|
-| users | User accounts |
-| categories | Product categories |
-| products | Products with categories |
-| orders | Customer orders |
-| order_items | Order line items |
-| schema_migrations | Migration tracking |
+| Layer | Technology |
+|-------|------------|
+| Frontend | Angular 21, Rspack, Signals |
+| Backend | C, WebUI, SQLite, DuckDB |
+| Build | Bun, nob.h |
+| Testing | Playwright, Bun |
+
+## Project Structure
+
+```
+frontend/           # Angular application
+├── src/
+│   ├── core/      # Core services
+│   ├── views/     # Page components
+│   └── assets/    # Static assets
+src/               # C backend
+├── services/      # 16 backend services
+├── di/           # Dependency injection
+└── tests/         # Backend tests
+```
+
+## Common Tasks
+
+### Running the App
+
+```bash
+# Full stack (frontend + backend)
+./run.sh dev
+
+# Frontend only
+cd frontend && bun run dev
+
+# Backend only
+./run.sh build && ./build/main
+```
+
+### Database Operations
+
+```bash
+# Database file location
+data/app.db
+
+# Open with SQLite CLI
+sqlite3 data/app.db
+```
+
+### Adding New Features
+
+1. Create service in `src/services/`
+2. Register in `app_module.h`
+3. Add API handler in `crud_api.c`
+4. Create frontend component in `frontend/src/views/`
+
+## Need Help?
+
+- [Implementation Details](./IMPLEMENTATION_SUMMARY.md)
+- [Testing Guide](./TESTING.md)
+- [Backend Architecture](./backend_README.md)
+- [Frontend Architecture](./frontend_README.md)

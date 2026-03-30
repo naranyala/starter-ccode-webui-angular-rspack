@@ -5,7 +5,7 @@
  */
 
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WebUIService } from './webui.service';
 
@@ -266,7 +266,7 @@ export class WebUIDemoComponent implements OnInit, OnDestroy {
   
   private backendUnsubscribe?: () => void;
 
-  constructor(private webuiService: WebUIService) {}
+  private readonly webuiService = inject(WebUIService);
 
   ngOnInit(): void {
     this.webuiAvailable = this.webuiService.isAvailable();

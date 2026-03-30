@@ -288,7 +288,7 @@ static const char* database_query_scalar_duckdb(DatabaseService* self, const cha
 
 DatabaseConfig database_service_auto_config(const char* path) {
     if (!path) {
-        return DATABASE_CONFIG_SQLITE("app.db");
+        return DATABASE_CONFIG_SQLITE("data/app.db");
     }
     
     size_t len = strlen(path);
