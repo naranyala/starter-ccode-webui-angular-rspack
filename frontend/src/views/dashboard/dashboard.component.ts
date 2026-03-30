@@ -7,11 +7,13 @@
 import { Component, signal, inject, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { MarkdownModule } from 'ngx-markdown';
+import { MarkdownModule, MarkdownService } from 'ngx-markdown';
 import { LoggerService } from '../../core/logger.service';
 import { ApiService } from '../../core/api.service';
+import { DocService, DocItem } from '../../core/doc.service';
 import { DuckdbAnalyticsComponent } from '../duckdb/duckdb-analytics.component';
 import { SqliteCrudComponent } from '../sqlite/sqlite.component';
+import { VegaChartsComponent } from '../charts/vega-charts.component';
 
 export interface DashboardStats {
   totalUsers: number;
@@ -37,6 +39,7 @@ export interface NavItem {
     MarkdownModule,
     DuckdbAnalyticsComponent,
     SqliteCrudComponent,
+    VegaChartsComponent,
   ],
   template: `
     <div class="dashboard-container">
@@ -85,6 +88,28 @@ export interface NavItem {
             </div>
           }
         </div>
+
+        <!-- Charts Section -->
+        <div class="pill-section">
+          <button class="section-header" (click)="toggleChartsSection()">
+            <span class="section-title">Vega Charts</span>
+            <span class="section-toggle">{{ chartsOpen() ? '▼' : '▶' }}</span>
+          </button>
+          @if (chartsOpen()) {
+            <div class="pill-container">
+              @for (item of chartsItems(); track item.id) {
+                <button
+                  class="dot-pill"
+                  [class.active]="activeView() === item.id"
+                  (click)="onNavClick(item.id)"
+                >
+                  <span class="pill-dot"></span>
+                  <span class="pill-text">{{ item.label }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
       </aside>
 
       <!-- Second Panel: Content -->
@@ -101,12 +126,12 @@ export interface NavItem {
             <app-duckdb-analytics></app-duckdb-analytics>
           } @else if (activeView() === 'demo_sqlite') {
             <app-sqlite-crud></app-sqlite-crud>
+          } @else if (activeView() === 'charts_gallery') {
+            <app-vega-charts></app-vega-charts>
           } @else {
-            <markdown 
-              [src]="currentMarkdownPath()" 
-              (load)="onMarkdownLoad($event)" 
-              (error)="onMarkdownError($event)">
-            </markdown>
+            <div class="markdown-content">
+              <markdown [data]="markdownContent()"></markdown>
+            </div>
           }
         </div>
       </main>
@@ -321,6 +346,12 @@ export interface NavItem {
       flex: 1;
       overflow-y: auto;
       padding: 0 32px 32px;
+    }
+
+    .markdown-content {
+      padding: 24px;
+      background: rgba(30, 41, 59, 0.3);
+      border-radius: 12px;
     }
 
     /* Markdown Styles */
@@ -586,38 +617,37 @@ export class DashboardComponent implements OnInit {
   private readonly logger = inject(LoggerService);
   private readonly http = inject(HttpClient);
   private readonly api = inject(ApiService);
+  private readonly docService = inject(DocService);
 
   @ViewChild('contentArea') contentArea!: ElementRef<HTMLElement>;
 
-  activeView = signal<string>('README');
+  activeView = signal<string>('');
   isLoading = signal(false);
   isMobileView = signal(false);
   showContent = signal(false);
-  
+
   users = signal<any[]>([]);
   products = signal<any[]>([]);
   orders = signal<any[]>([]);
 
   docsOpen = signal(true);
-  demoOpen = signal(true);
+  demoOpen = signal(false);
+  chartsOpen = signal(false);
 
-  docItems = signal<NavItem[]>([
-    { id: 'README', label: 'Overview', icon: '📖', active: true },
-    { id: 'QUICKSTART', label: 'Quick Start', icon: '🚀', active: false },
-    { id: 'ARCHITECTURE', label: 'Architecture', icon: '🏗️', active: false },
-    { id: 'PROJECT_STRUCTURE', label: 'Structure', icon: '📁', active: false },
-    { id: 'DEMOS', label: 'Demos', icon: '🎯', active: false },
-    { id: 'API', label: 'API Reference', icon: '🔌', active: false },
-    { id: 'CHANGELOG', label: 'Changelog', icon: '📋', active: false },
-  ]);
+  docItems = signal<NavItem[]>([]);
 
   demoItems = signal<NavItem[]>([
     { id: 'demo_duckdb', label: 'DuckDB Analytics', icon: '📊', active: false },
     { id: 'demo_sqlite', label: 'SQLite CRUD', icon: '🗄️', active: false },
   ]);
 
+  chartsItems = signal<NavItem[]>([
+    { id: 'charts_gallery', label: 'Charts Gallery', icon: '📈', active: false },
+  ]);
+
   currentPageTitle = signal('Overview');
-  currentMarkdownPath = signal('assets/docs/README.md');
+  currentMarkdownPath = signal('assets/docs/OVERVIEW.md');
+  markdownContent = signal('');
   stats = signal({
     totalUsers: 0,
     totalProducts: 0,
@@ -628,7 +658,21 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     this.loadData();
     this.checkMobileView();
+    this.loadDocManifest();
     window.addEventListener('resize', () => this.checkMobileView());
+  }
+
+  async loadDocManifest(): Promise<void> {
+    await this.docService.loadManifest();
+    const items = this.docService.docItems();
+    this.docItems.set(items);
+    
+    // Set first doc as active view
+    if (items.length > 0) {
+      const firstItem = items[0];
+      this.activeView.set(firstItem.id);
+      this.loadMarkdown(this.docService.getDocPath(firstItem.id) || '');
+    }
   }
 
   checkMobileView(): void {
@@ -672,21 +716,39 @@ export class DashboardComponent implements OnInit {
     const demoItem = this.demoItems().find(i => i.id === viewId);
     const item = docItem || demoItem;
     this.currentPageTitle.set(item ? item.label : viewId);
-    
+
     if (viewId.startsWith('demo_')) {
       this.currentMarkdownPath.set('');
+      this.markdownContent.set('');
     } else {
-      this.currentMarkdownPath.set(`assets/docs/${viewId}.md`);
+      const path = this.docService.getDocPath(viewId);
+      if (path) {
+        this.currentMarkdownPath.set(path);
+        this.loadMarkdown(path);
+      }
     }
-    
+
     // On mobile, show content panel
     if (this.isMobileView()) {
       this.showContent.set(true);
     }
-    
+
     if (this.contentArea) {
       this.contentArea.nativeElement.scrollTop = 0;
     }
+  }
+
+  loadMarkdown(path: string): void {
+    this.http.get(path, { responseType: 'text' }).subscribe({
+      next: (content) => {
+        this.markdownContent.set(content);
+        this.logger.info('Markdown loaded successfully');
+      },
+      error: (error) => {
+        this.logger.error('Failed to load markdown', error);
+        this.markdownContent.set(`# Error\n\nFailed to load documentation from: ${path}`);
+      }
+    });
   }
 
   onNavClick(viewId: string): void {
@@ -701,12 +763,8 @@ export class DashboardComponent implements OnInit {
     this.demoOpen.update(v => !v);
   }
 
-  onMarkdownLoad(event: any): void {
-    this.logger.info('Markdown loaded successfully');
-  }
-
-  onMarkdownError(error: any): void {
-    this.logger.error('Failed to load markdown', error);
+  toggleChartsSection(): void {
+    this.chartsOpen.update(v => !v);
   }
 
   onStatsUpdate(event: { type: string; count: number }): void {

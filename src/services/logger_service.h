@@ -21,6 +21,7 @@
 #define LOGGER_SERVICE_H
 
 #include "di/di.h"
+#include "core/base_service.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -81,7 +82,7 @@ typedef struct LoggerService {
     
     /* File logging */
     FILE* file_output;              /**< File handle */
-    char log_file_path[512];        /**< Log file path */
+    char log_file_path[1024];       /**< Log file path */
     int64_t current_file_size;      /**< Current file size in bytes */
     int max_file_size;              /**< Max file size before rotation */
     int rotate_count;               /**< Number of rotated files to keep */
@@ -207,60 +208,29 @@ const char* logger_level_to_string(LogLevel level);
  */
 LogLevel logger_string_to_level(const char* str);
 
-/* Convenience macros */
-
-/**
- * @brief Log debug message
- * @param logger Logger instance
- * @param ... Format string and arguments
- */
+/* Convenience macros - commented out to avoid conflict with base_service.h */
+/*
 #define LOG_DEBUG(logger, ...) \
     logger_log((logger), "DEBUG", __VA_ARGS__)
 
-/**
- * @brief Log info message
- * @param logger Logger instance
- * @param ... Format string and arguments
- */
 #define LOG_INFO(logger, ...) \
     logger_log((logger), "INFO", __VA_ARGS__)
 
-/**
- * @brief Log warning message
- * @param logger Logger instance
- * @param ... Format string and arguments
- */
 #define LOG_WARN(logger, ...) \
     logger_log((logger), "WARN", __VA_ARGS__)
 
-/**
- * @brief Log error message
- * @param logger Logger instance
- * @param ... Format string and arguments
- */
 #define LOG_ERROR(logger, ...) \
     logger_log((logger), "ERROR", __VA_ARGS__)
 
-/**
- * @brief Log fatal message
- * @param logger Logger instance
- * @param ... Format string and arguments
- */
 #define LOG_FATAL(logger, ...) \
     logger_log((logger), "FATAL", __VA_ARGS__)
 
-/**
- * @brief Log with conditional execution
- * @param logger Logger instance
- * @param level Log level string
- * @param condition Condition to check
- * @param ... Format string and arguments (only evaluated if condition is true)
- */
 #define LOG_IF(logger, level, condition, ...) \
     do { \
         if (condition) { \
             logger_log((logger), (level), __VA_ARGS__); \
         } \
     } while (0)
+*/
 
 #endif /* LOGGER_SERVICE_H */

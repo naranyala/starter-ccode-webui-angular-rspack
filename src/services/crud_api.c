@@ -6,6 +6,7 @@
 #include "logger_service.h"
 #include "data_validation.h"
 #include <webui.h>
+#include <sqlite3.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -204,7 +205,7 @@ static void handle_create_user(webui_event_t* e) {
     sqlite_bind_text(stmt, 2, email);
     sqlite_bind_int(stmt, 3, age);
 
-    if (sqlite_step_execute(g_sqlite, stmt) != SQLITE_DONE) {
+    if (sqlite_step_execute( stmt) != SQLITE_DONE) {
         sqlite_finalize(stmt);
         if (logger) logger_log(logger, "ERROR", "create_user failed");
         send_response(e, build_json_response(0, NULL, "Insert failed"));
@@ -221,7 +222,7 @@ static void handle_create_user(webui_event_t* e) {
     escape_sql_string(escaped_name, sizeof(escaped_name), name);
     escape_sql_string(escaped_email, sizeof(escaped_email), email);
 
-    char resp[1024];
+    char resp[4096];
     snprintf(resp, sizeof(resp),
         "{\"id\":%lld,\"name\":\"%s\",\"email\":\"%s\",\"age\":%d}", 
         id, escaped_name, escaped_email, age);
@@ -305,7 +306,7 @@ static void handle_update_user(webui_event_t* e) {
     sqlite_bind_int(stmt, 3, age);
     sqlite_bind_int(stmt, 4, id);
 
-    if (sqlite_step_execute(g_sqlite, stmt) != SQLITE_DONE) {
+    if (sqlite_step_execute( stmt) != SQLITE_DONE) {
         sqlite_finalize(stmt);
         if (logger) logger_log(logger, "ERROR", "update_user failed");
         send_response(e, build_json_response(0, NULL, "Update failed"));
@@ -316,7 +317,7 @@ static void handle_update_user(webui_event_t* e) {
     
     if (logger) logger_log(logger, "INFO", "Updated user id=%d", id);
     
-    char resp[1024];
+    char resp[4096];
     snprintf(resp, sizeof(resp), 
         "{\"id\":%d,\"name\":\"%s\",\"email\":\"%s\",\"age\":%d}", 
         id, name, email, age);

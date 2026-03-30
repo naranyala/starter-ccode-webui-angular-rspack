@@ -72,21 +72,21 @@ void logger_rotate(LoggerService* self) {
     self->file_output = NULL;
     
     /* Delete oldest rotated file */
-    char oldest_path[512];
+    char oldest_path[2048];
     snprintf(oldest_path, sizeof(oldest_path), "%s.%d", 
              self->log_file_path, self->rotate_count);
     remove(oldest_path);
     
     /* Rotate existing files */
     for (int i = self->rotate_count - 1; i >= 1; i--) {
-        char old_path[512], new_path[512];
+        char old_path[2048], new_path[2048];
         snprintf(old_path, sizeof(old_path), "%s.%d", self->log_file_path, i);
         snprintf(new_path, sizeof(new_path), "%s.%d", self->log_file_path, i + 1);
         rename(old_path, new_path);
     }
     
     /* Rename current log file */
-    char new_path[512];
+    char new_path[2048];
     snprintf(new_path, sizeof(new_path), "%s.1", self->log_file_path);
     rename(self->log_file_path, new_path);
     
@@ -177,7 +177,7 @@ static void write_log(LoggerService* self, const char* level, const char* messag
  * ============================================================================ */
 
 DI_SERVICE_INIT(LoggerService, logger_service) {
-    VALIDATE_PTR(self, RESULT_ERROR_INVALID_PARAM);
+    if (!self) return DI_ERROR_NULL_POINTER;
     
     /* Initialize with defaults */
     memset(self, 0, sizeof(LoggerService));
@@ -199,7 +199,7 @@ DI_SERVICE_INIT(LoggerService, logger_service) {
 #endif
     
     LOG_INFO(self, "LoggerService initialized");
-    return RESULT_OK;
+    return DI_OK;
 }
 
 DI_SERVICE_CLEANUP(LoggerService, logger_service) {

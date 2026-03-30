@@ -957,7 +957,7 @@ export class DuckdbAnalyticsComponent implements OnInit {
       this.calculateCategoryStats();
     } catch (error) {
       this.logger.error('Failed to load dashboard data', error);
-      this.notification.showError('Failed to load analytics data');
+      this.notification.error('Failed to load analytics data');
     } finally {
       this.loading.set(false);
     }
@@ -1017,7 +1017,7 @@ export class DuckdbAnalyticsComponent implements OnInit {
 
   async refreshData(): Promise<void> {
     await this.loadDashboardData();
-    this.notification.showSuccess('Data refreshed');
+    this.notification.success('Data refreshed');
   }
 
   exportData(): void {
@@ -1036,11 +1036,11 @@ export class DuckdbAnalyticsComponent implements OnInit {
     a.click();
     URL.revokeObjectURL(url);
     
-    this.notification.showSuccess('Data exported successfully');
+    this.notification.success('Data exported successfully');
   }
 
   showAllProducts(): void {
-    this.notification.showInfo('Product list feature coming soon');
+    this.notification.info('Product list feature coming soon');
   }
 
   getInitials(name: string): string {

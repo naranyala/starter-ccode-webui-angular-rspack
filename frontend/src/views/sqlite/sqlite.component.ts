@@ -15,7 +15,7 @@
 import { Component, signal, inject, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule, Database, Search, RefreshCw, Plus, Edit2, Trash2, Users, Mail, Hash } from 'lucide-angular';
+import { LucideAngularModule, Database, Search, RefreshCw, Plus, Edit2, Trash2, Users, Mail, Hash, X as XIcon, List } from 'lucide-angular';
 import { LoggerService } from '../../core/logger.service';
 import { ApiService } from '../../core/api.service';
 import { NotificationService } from '../../core/notification.service';
@@ -39,6 +39,18 @@ export interface FormData {
   name: string;
   email: string;
   age: number;
+}
+
+export interface ValidationResponse {
+  success: boolean;
+  data?: {
+    can_delete: boolean;
+    user_name: string;
+    dependency_table?: string;
+    dependency_count?: number;
+    message?: string;
+  };
+  error?: string;
 }
 
 @Component({
@@ -247,7 +259,7 @@ export interface FormData {
                 <input 
                   type="text" 
                   class="form-input" 
-                  [(ngModel)]="formData.name"
+                  [(ngModel)]="formData().name"
                   name="name"
                   required
                   placeholder="John Doe"/>
@@ -261,7 +273,7 @@ export interface FormData {
                 <input 
                   type="email" 
                   class="form-input" 
-                  [(ngModel)]="formData.email"
+                  [(ngModel)]="formData().email"
                   name="email"
                   required
                   placeholder="john@example.com"/>
@@ -275,7 +287,7 @@ export interface FormData {
                 <input 
                   type="number" 
                   class="form-input" 
-                  [(ngModel)]="formData.age"
+                  [(ngModel)]="formData().age"
                   name="age"
                   required
                   min="1"
@@ -833,7 +845,7 @@ export class SqliteCrudComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly notification = inject(NotificationService);
 
-  readonly icons = { Database, Search, RefreshCw, Plus, Edit2, Trash2, Users, Mail, Hash, List, X };
+  readonly icons = { Database, Search, RefreshCw, Plus, Edit2, Trash2, Users, Mail, Hash, List, X: XIcon };
 
   // State
   readonly activeTab = signal<'list' | 'create'>('list');
@@ -866,7 +878,7 @@ export class SqliteCrudComponent implements OnInit {
       this.filterUsers();
     } catch (error) {
       this.logger.error('Failed to load users', error);
-      this.notification.showError('Failed to load users');
+      this.notification.error('Failed to load users');
     } finally {
       this.loading.set(false);
     }
@@ -921,7 +933,7 @@ export class SqliteCrudComponent implements OnInit {
 
   async submitForm(): Promise<void> {
     if (!this.formData().name || !this.formData().email || !this.formData().age) {
-      this.notification.showError('Please fill in all fields');
+      this.notification.error('Please fill in all fields');
       return;
     }
 
@@ -929,16 +941,16 @@ export class SqliteCrudComponent implements OnInit {
     try {
       if (this.isEditing()) {
         await this.api.callOrThrow('updateUser', [this.formData()]);
-        this.notification.showSuccess('User updated successfully');
+        this.notification.success('User updated successfully');
       } else {
         await this.api.callOrThrow('createUser', [this.formData()]);
-        this.notification.showSuccess('User created successfully');
+        this.notification.success('User created successfully');
       }
       this.resetForm();
       await this.loadUsers();
     } catch (error) {
       this.logger.error('Failed to save user', error);
-      this.notification.showError('Failed to save user');
+      this.notification.error('Failed to save user');
     } finally {
       this.submitting.set(false);
     }
@@ -948,35 +960,35 @@ export class SqliteCrudComponent implements OnInit {
     // First validate the deletion
     this.loading.set(true);
     try {
-      const validation = await this.api.call('validateDeleteUser', [{ id: user.id }]);
-      
-      if (!validation.success) {
-        this.notification.showError(validation.error || 'Cannot delete user');
+      const response = await this.api.call('validateDeleteUser', [{ id: user.id }]);
+
+      if (!response.success) {
+        this.notification.error(response.error || 'Cannot delete user');
         return;
       }
-      
+
       // Check if there are dependencies
-      if (!validation.data?.can_delete) {
-        const data = validation.data;
-        const message = data.message || `Cannot delete: ${data.dependency_count} ${data.dependency_table} reference this user`;
+      const validationData = response.data as { can_delete?: boolean; message?: string; dependency_count?: number; dependency_table?: string; user_name?: string } | undefined;
+      if (validationData && !validationData.can_delete) {
+        const message = validationData.message || `Cannot delete: ${validationData.dependency_count} ${validationData.dependency_table} reference this user`;
         this.notification.warning(message);
         return;
       }
-      
+
       // Safe to delete - confirm with user
-      const userName = validation.data?.user_name || user.name;
+      const userName = validationData?.user_name || user.name;
       if (!confirm(`Are you sure you want to delete "${userName}"?\n\nThis action cannot be undone.`)) {
         return;
       }
 
       // Proceed with deletion
       await this.api.callOrThrow('deleteUser', [user.id]);
-      this.notification.showSuccess('User deleted successfully');
+      this.notification.success('User deleted successfully');
       await this.loadUsers();
     } catch (error) {
       this.logger.error('Failed to delete user', error);
       const errorMsg = error instanceof Error ? error.message : 'Failed to delete user';
-      this.notification.showError(errorMsg);
+      this.notification.error(errorMsg);
     } finally {
       this.loading.set(false);
     }

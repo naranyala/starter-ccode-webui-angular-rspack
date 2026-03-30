@@ -19,9 +19,9 @@
  * ```
  */
 import { Directive, signal, computed, inject } from '@angular/core';
-import { ApiService } from '../api.service';
-import { NotificationService } from '../notification.service';
-import { LoggerService } from '../logger.service';
+import { ApiService } from './api.service';
+import { NotificationService } from './notification.service';
+import { LoggerService } from './logger.service';
 
 /**
  * Pagination state
@@ -140,7 +140,7 @@ export abstract class BaseCrudComponent<
       const message = err instanceof Error ? err.message : 'Unknown error';
       this.error.set(message);
       this.logger.error(`Failed to load ${this.getEntityNamePlural()}`, err);
-      this.notification.showError(`Failed to load ${this.getEntityNamePlural()}`);
+      this.notification.error(`Failed to load ${this.getEntityNamePlural()}`);
     } finally {
       this.loading.set(false);
     }
@@ -176,7 +176,7 @@ export abstract class BaseCrudComponent<
 
       if (result.success && result.data) {
         const entity = this.mapApiData(result.data);
-        this.notification.showSuccess(`${this.entityName} created successfully`);
+        this.notification.success(`${this.entityName} created successfully`);
         await this.loadItems();
         await this.loadStats();
         return entity;
@@ -187,7 +187,7 @@ export abstract class BaseCrudComponent<
       const message = err instanceof Error ? err.message : 'Create failed';
       this.error.set(message);
       this.logger.error(`Failed to create ${this.entityName}`, err);
-      this.notification.showError(`Failed to create ${this.entityName}`);
+      this.notification.error(`Failed to create ${this.entityName}`);
       return null;
     } finally {
       this.loading.set(false);
@@ -206,7 +206,7 @@ export abstract class BaseCrudComponent<
       const result = await this.api.call(methodName, [data]);
 
       if (result.success) {
-        this.notification.showSuccess(`${this.entityName} updated successfully`);
+        this.notification.success(`${this.entityName} updated successfully`);
         await this.loadItems();
         return true;
       } else {
@@ -216,7 +216,7 @@ export abstract class BaseCrudComponent<
       const message = err instanceof Error ? err.message : 'Update failed';
       this.error.set(message);
       this.logger.error(`Failed to update ${this.entityName}`, err);
-      this.notification.showError(`Failed to update ${this.entityName}`);
+      this.notification.error(`Failed to update ${this.entityName}`);
       return false;
     } finally {
       this.loading.set(false);
@@ -235,7 +235,7 @@ export abstract class BaseCrudComponent<
       const result = await this.api.call(methodName, [{ id }]);
 
       if (result.success) {
-        this.notification.showSuccess(`${this.entityName} deleted successfully`);
+        this.notification.success(`${this.entityName} deleted successfully`);
         await this.loadItems();
         await this.loadStats();
         return true;
@@ -246,7 +246,7 @@ export abstract class BaseCrudComponent<
       const message = err instanceof Error ? err.message : 'Delete failed';
       this.error.set(message);
       this.logger.error(`Failed to delete ${this.entityName}`, err);
-      this.notification.showError(`Failed to delete ${this.entityName}`);
+      this.notification.error(`Failed to delete ${this.entityName}`);
       return false;
     } finally {
       this.loading.set(false);
