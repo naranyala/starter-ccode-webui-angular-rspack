@@ -218,6 +218,7 @@ static bool build_main(void)
         "src/services/error_service.c",
         "src/services/updater_service.c",
         "src/services/crud_api.c",
+        "src/services/data_validation.c",
         "src/di/di_impl.c",
         "-I./src",
         "-I./thirdparty/webui/include/",

@@ -10,9 +10,7 @@ import { HttpClient } from '@angular/common/http';
 import { MarkdownModule } from 'ngx-markdown';
 import { LoggerService } from '../../core/logger.service';
 import { ApiService } from '../../core/api.service';
-import { DuckdbUsersComponent } from '../duckdb/duckdb-users.component';
-import { DuckdbProductsComponent } from '../duckdb/duckdb-products.component';
-import { DuckdbOrdersComponent } from '../duckdb/duckdb-orders.component';
+import { DuckdbAnalyticsComponent } from '../duckdb/duckdb-analytics.component';
 import { SqliteCrudComponent } from '../sqlite/sqlite.component';
 
 export interface DashboardStats {
@@ -37,9 +35,7 @@ export interface NavItem {
   imports: [
     CommonModule,
     MarkdownModule,
-    DuckdbUsersComponent,
-    DuckdbProductsComponent,
-    DuckdbOrdersComponent,
+    DuckdbAnalyticsComponent,
     SqliteCrudComponent,
   ],
   template: `
@@ -101,12 +97,8 @@ export interface NavItem {
 
         <!-- Content Area -->
         <div class="content-area" #contentArea>
-          @if (activeView() === 'demo_duckdb_users') {
-            <app-duckdb-users [items]="users()" (statsChange)="onStatsUpdate($any($event))"></app-duckdb-users>
-          } @else if (activeView() === 'demo_duckdb_products') {
-            <app-duckdb-products [items]="products()" (statsChange)="onStatsUpdate($any($event))"></app-duckdb-products>
-          } @else if (activeView() === 'demo_duckdb_orders') {
-            <app-duckdb-orders [items]="orders()" (statsChange)="onStatsUpdate($any($event))"></app-duckdb-orders>
+          @if (activeView() === 'demo_duckdb') {
+            <app-duckdb-analytics></app-duckdb-analytics>
           } @else if (activeView() === 'demo_sqlite') {
             <app-sqlite-crud></app-sqlite-crud>
           } @else {
@@ -620,10 +612,8 @@ export class DashboardComponent implements OnInit {
   ]);
 
   demoItems = signal<NavItem[]>([
-    { id: 'demo_duckdb_users', label: 'DuckDB Users', icon: '👥', active: false },
-    { id: 'demo_duckdb_products', label: 'DuckDB Products', icon: '📦', active: false },
-    { id: 'demo_duckdb_orders', label: 'DuckDB Orders', icon: '🛒', active: false },
-    { id: 'demo_sqlite', label: 'SQLite CRUD', icon: '🗃️', active: false },
+    { id: 'demo_duckdb', label: 'DuckDB Analytics', icon: '📊', active: false },
+    { id: 'demo_sqlite', label: 'SQLite CRUD', icon: '🗄️', active: false },
   ]);
 
   currentPageTitle = signal('Overview');

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { LoggerService } from './logger.service';
 
 export interface WinBoxOptions {
@@ -82,7 +82,7 @@ export interface WinBoxInstance {
   providedIn: 'root',
 })
 export class WinBoxService {
-  private readonly logger = new LoggerService();
+  private readonly logger = inject(LoggerService);
   private winboxConstructor: any = null;
 
   constructor() {

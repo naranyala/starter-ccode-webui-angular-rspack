@@ -1,316 +1,1059 @@
 /**
- * DuckDB Analytics Component
- *
- * Query builder and analytics dashboard
+ * DuckDB Analytics Dashboard Component
+ * 
+ * Professional analytics dashboard showcasing DuckDB's OLAP capabilities
+ * Features:
+ * - Real-time analytics dashboard
+ * - Advanced filtering and search
+ * - Data visualization cards
+ * - Export functionality
+ * - Professional dark theme with DuckDB branding (orange/blue)
  */
 
-import { Component, signal, inject, OnInit } from '@angular/core';
+import { Component, signal, inject, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { 
+  LucideAngularModule, 
+  Database, Search, Filter, Download, TrendingUp, Users, 
+  DollarSign, ShoppingCart, Activity, ArrowUpRight, ArrowDownRight,
+  Calendar, Package, RefreshCw, X, Plus, Edit2, Trash2
+} from 'lucide-angular';
 import { LoggerService } from '../../core/logger.service';
 import { ApiService } from '../../core/api.service';
+import { NotificationService } from '../../core/notification.service';
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+export interface Product {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  category: string;
+  created_at: string;
+}
+
+export interface Order {
+  id: number;
+  customer_name: string;
+  customer_email: string;
+  product_name: string;
+  quantity: number;
+  total: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  created_at: string;
+}
+
+export interface DashboardStats {
+  total_products: number;
+  total_orders: number;
+  total_revenue: number;
+  avg_order_value: number;
+  pending_orders: number;
+  low_stock_products: number;
+  revenue_change: number;
+  orders_change: number;
+}
+
+export interface CategoryStats {
+  category: string;
+  product_count: number;
+  total_revenue: number;
+  percentage: number;
+}
+
+// ============================================================================
+// Component
+// ============================================================================
 
 @Component({
   selector: 'app-duckdb-analytics',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule],
   template: `
-    <div class="analytics-container">
-      <!-- Query Builder Card -->
-      <div class="table-card">
-        <div class="card-header">
-          <h2 class="card-title">
-            <span class="title-icon">📊</span>
-            SQL Query Builder
-          </h2>
-        </div>
-
-        <div class="query-builder">
-          <div class="query-row">
-            <label class="query-label">SELECT</label>
-            <input
-              type="text"
-              class="query-input"
-              [(ngModel)]="queryFields"
-              placeholder="* or column names (e.g., id, name, email)"
-            />
+    <div class="duckdb-dashboard">
+      <!-- Page Header -->
+      <header class="page-header">
+        <div class="header-content">
+          <div class="header-brand">
+            <div class="logo-wrapper">
+              <lucide-angular [img]="icons.Database" size="32" class="logo-icon"></lucide-angular>
+            </div>
+            <div class="header-text">
+              <h1 class="page-title">DuckDB Analytics Dashboard</h1>
+              <p class="page-subtitle">Real-time OLAP analytics and business intelligence</p>
+            </div>
           </div>
-          <div class="query-row">
-            <label class="query-label">FROM</label>
-            <select class="query-input" [(ngModel)]="selectedTable">
-              <option value="users">users</option>
-              <option value="products">products</option>
-              <option value="orders">orders</option>
-            </select>
-          </div>
-          <div class="query-row">
-            <label class="query-label">WHERE</label>
-            <input
-              type="text"
-              class="query-input"
-              [(ngModel)]="queryWhere"
-              placeholder="Optional: age > 25, status = 'active', etc."
-            />
-          </div>
-          <div class="query-row">
-            <label class="query-label">ORDER BY</label>
-            <input
-              type="text"
-              class="query-input"
-              [(ngModel)]="queryOrder"
-              placeholder="Optional: created_at DESC, name ASC"
-            />
-          </div>
-          <div class="query-row">
-            <label class="query-label">LIMIT</label>
-            <input
-              type="number"
-              class="query-input"
-              [(ngModel)]="queryLimit"
-              min="1"
-              max="1000"
-              placeholder="10"
-            />
-          </div>
-          <div class="query-actions">
-            <button class="btn btn-secondary" (click)="resetQuery()">
-              <span class="btn-icon">↺</span> Reset
+          <div class="header-actions">
+            <button class="btn btn-outline" (click)="refreshData()">
+              <lucide-angular [img]="icons.RefreshCw" size="16"></lucide-angular>
+              Refresh
             </button>
-            <button class="btn btn-primary" (click)="executeQuery()" [disabled]="isExecuting()">
-              <span class="btn-icon">{{ isExecuting() ? '⏳' : '▶' }}</span>
-              {{ isExecuting() ? 'Executing...' : 'Execute Query' }}
+            <button class="btn btn-primary" (click)="exportData()">
+              <lucide-angular [img]="icons.Download" size="16"></lucide-angular>
+              Export
             </button>
           </div>
         </div>
+      </header>
 
-        <!-- Generated SQL Preview -->
-        <div class="sql-preview">
-          <div class="preview-header">
-            <span class="preview-title">Generated SQL:</span>
-            <button class="btn-copy" (click)="copySql()" title="Copy SQL">📋</button>
-          </div>
-          <pre class="sql-code">{{ generatedSql() }}</pre>
-        </div>
-      </div>
-
-      <!-- Query Results Card -->
-      @if (queryResult()) {
-        <div class="table-card">
-          <div class="card-header">
-            <h2 class="card-title">
-              <span class="title-icon">📋</span>
-              Query Results
-            </h2>
-            <span class="result-count">{{ resultCount() }} rows</span>
-          </div>
-
-          <div class="table-container">
-            @if (resultData().length > 0) {
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    @for (col of resultColumns(); track col) {
-                      <th>{{ col }}</th>
-                    }
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (row of resultData(); track row; let i = $index) {
-                    <tr class="data-row">
-                      @for (col of resultColumns(); track col) {
-                        <td>{{ row[col] }}</td>
-                      }
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            } @else {
-              <div class="empty-state">
-                <span class="empty-icon">📭</span>
-                <p>No results returned</p>
-              </div>
-            }
-          </div>
+      <!-- Loading State -->
+      @if (loading()) {
+        <div class="loading-overlay">
+          <div class="spinner-large"></div>
+          <span>Loading analytics data...</span>
         </div>
       }
 
-      <!-- Statistics Cards -->
-      <div class="stats-grid">
-        <div class="stat-card stat-info">
-          <div class="stat-icon">📈</div>
-          <div class="stat-content">
-            <span class="stat-value">{{ queryTime() }}ms</span>
-            <span class="stat-label">Query Time</span>
+      <!-- Main Dashboard Content -->
+      @if (!loading()) {
+        <div class="dashboard-content">
+          
+          <!-- KPI Cards Row -->
+          <div class="kpi-grid">
+            <!-- Total Revenue -->
+            <div class="kpi-card kpi-revenue">
+              <div class="kpi-header">
+                <div class="kpi-icon">
+                  <lucide-angular [img]="icons.DollarSign" size="20"></lucide-angular>
+                </div>
+                @if (stats()?.revenue_change !== undefined) {
+                  <div class="kpi-trend" [class.trend-up]="stats()!.revenue_change >= 0" [class.trend-down]="stats()!.revenue_change < 0">
+                    <lucide-angular [img]="stats()!.revenue_change >= 0 ? icons.ArrowUpRight : icons.ArrowDownRight" size="16"></lucide-angular>
+                    {{ Math.abs(stats()!.revenue_change) }}%
+                  </div>
+                }
+              </div>
+              <div class="kpi-value">{{ stats()?.total_revenue | currency }}</div>
+              <div class="kpi-label">Total Revenue</div>
+            </div>
+
+            <!-- Total Orders -->
+            <div class="kpi-card kpi-orders">
+              <div class="kpi-header">
+                <div class="kpi-icon">
+                  <lucide-angular [img]="icons.ShoppingCart" size="20"></lucide-angular>
+                </div>
+                @if (stats()?.orders_change !== undefined) {
+                  <div class="kpi-trend" [class.trend-up]="stats()!.orders_change >= 0" [class.trend-down]="stats()!.orders_change < 0">
+                    <lucide-angular [img]="stats()!.orders_change >= 0 ? icons.ArrowUpRight : icons.ArrowDownRight" size="16"></lucide-angular>
+                    {{ Math.abs(stats()!.orders_change) }}%
+                  </div>
+                }
+              </div>
+              <div class="kpi-value">{{ stats()?.total_orders | number }}</div>
+              <div class="kpi-label">Total Orders</div>
+            </div>
+
+            <!-- Total Products -->
+            <div class="kpi-card kpi-products">
+              <div class="kpi-header">
+                <div class="kpi-icon">
+                  <lucide-angular [img]="icons.Package" size="20"></lucide-angular>
+                </div>
+              </div>
+              <div class="kpi-value">{{ stats()?.total_products | number }}</div>
+              <div class="kpi-label">Total Products</div>
+            </div>
+
+            <!-- Avg Order Value -->
+            <div class="kpi-card kpi-avg">
+              <div class="kpi-header">
+                <div class="kpi-icon">
+                  <lucide-angular [img]="icons.TrendingUp" size="20"></lucide-angular>
+                </div>
+              </div>
+              <div class="kpi-value">{{ stats()?.avg_order_value | currency:'symbol':'1.0-0' }}</div>
+              <div class="kpi-label">Avg Order Value</div>
+            </div>
+
+            <!-- Pending Orders -->
+            <div class="kpi-card kpi-pending">
+              <div class="kpi-header">
+                <div class="kpi-icon">
+                  <lucide-angular [img]="icons.Calendar" size="20"></lucide-angular>
+                </div>
+              </div>
+              <div class="kpi-value">{{ stats()?.pending_orders | number }}</div>
+              <div class="kpi-label">Pending Orders</div>
+            </div>
+
+            <!-- Low Stock Alert -->
+            <div class="kpi-card kpi-alert">
+              <div class="kpi-header">
+                <div class="kpi-icon">
+                  <lucide-angular [img]="icons.Activity" size="20"></lucide-angular>
+                </div>
+              </div>
+              <div class="kpi-value">{{ stats()?.low_stock_products | number }}</div>
+              <div class="kpi-label">Low Stock Products</div>
+            </div>
+          </div>
+
+          <!-- Main Content Grid -->
+          <div class="content-grid">
+            
+            <!-- Recent Orders Table -->
+            <div class="content-card card-large">
+              <div class="card-header">
+                <div class="card-title">
+                  <lucide-angular [img]="icons.ShoppingCart" size="20"></lucide-angular>
+                  Recent Orders
+                </div>
+                <div class="card-actions">
+                  <div class="search-small">
+                    <lucide-angular [img]="icons.Search" size="14" class="search-icon"></lucide-angular>
+                    <input 
+                      type="text" 
+                      placeholder="Search orders..."
+                      [(ngModel)]="orderSearch"
+                      (ngModelChange)="filterOrders()"/>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body">
+                @if (filteredOrders().length === 0) {
+                  <div class="empty-state-small">
+                    <lucide-angular [img]="icons.ShoppingCart" size="32"></lucide-angular>
+                    <span>No orders found</span>
+                  </div>
+                } @else {
+                  <div class="table-container">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>Order ID</th>
+                          <th>Customer</th>
+                          <th>Product</th>
+                          <th>Quantity</th>
+                          <th>Total</th>
+                          <th>Status</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (order of filteredOrders(); track order.id) {
+                          <tr class="data-row">
+                            <td class="cell-id">#{{ order.id }}</td>
+                            <td>
+                              <div class="customer-cell">
+                                <div class="avatar">{{ getInitials(order.customer_name) }}</div>
+                                <div class="customer-info">
+                                  <div class="customer-name">{{ order.customer_name }}</div>
+                                  <div class="customer-email">{{ order.customer_email }}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td class="cell-product">{{ order.product_name }}</td>
+                            <td>
+                              <span class="quantity-badge">{{ order.quantity }}</span>
+                            </td>
+                            <td class="cell-total">{{ order.total | currency }}</td>
+                            <td>
+                              <span class="status-badge" [class]="'status-' + order.status">
+                                {{ order.status | titlecase }}
+                              </span>
+                            </td>
+                            <td class="cell-date">{{ formatDate(order.created_at) }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Category Analytics -->
+            <div class="content-card">
+              <div class="card-header">
+                <div class="card-title">
+                  <lucide-angular [img]="icons.TrendingUp" size="20"></lucide-angular>
+                  Category Performance
+                </div>
+              </div>
+              <div class="card-body">
+                @if (categoryStats().length === 0) {
+                  <div class="empty-state-small">
+                    <lucide-angular [img]="icons.TrendingUp" size="32"></lucide-angular>
+                    <span>No category data</span>
+                  </div>
+                } @else {
+                  <div class="category-list">
+                    @for (cat of categoryStats(); track cat.category) {
+                      <div class="category-item">
+                        <div class="category-info">
+                          <span class="category-name">{{ cat.category }}</span>
+                          <span class="category-count">{{ cat.product_count }} products</span>
+                        </div>
+                        <div class="category-stats">
+                          <span class="category-revenue">{{ cat.total_revenue | currency }}</span>
+                          <div class="progress-bar">
+                            <div class="progress-fill" [style.width.%]="cat.percentage"></div>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Products List -->
+            <div class="content-card">
+              <div class="card-header">
+                <div class="card-title">
+                  <lucide-angular [img]="icons.Package" size="20"></lucide-angular>
+                  Top Products
+                </div>
+                <button class="btn-icon-sm" (click)="showAllProducts()">
+                  <lucide-angular [img]="icons.Plus" size="16"></lucide-angular>
+                </button>
+              </div>
+              <div class="card-body">
+                @if (products().length === 0) {
+                  <div class="empty-state-small">
+                    <lucide-angular [img]="icons.Package" size="32"></lucide-angular>
+                    <span>No products</span>
+                  </div>
+                } @else {
+                  <div class="product-list">
+                    @for (product of products().slice(0, 5); track product.id) {
+                      <div class="product-item">
+                        <div class="product-avatar">{{ getInitials(product.name) }}</div>
+                        <div class="product-info">
+                          <div class="product-name">{{ product.name }}</div>
+                          <div class="product-category">{{ product.category }}</div>
+                        </div>
+                        <div class="product-price">{{ product.price | currency }}</div>
+                        <span class="stock-indicator" [class.low]="product.stock < 10">
+                          {{ product.stock }} in stock
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
           </div>
         </div>
-        <div class="stat-card stat-success">
-          <div class="stat-icon">✓</div>
-          <div class="stat-content">
-            <span class="stat-value">{{ successfulQueries() }}</span>
-            <span class="stat-label">Successful Queries</span>
-          </div>
-        </div>
-        <div class="stat-card stat-warning">
-          <div class="stat-icon">⏱</div>
-          <div class="stat-content">
-            <span class="stat-value">{{ avgQueryTime | number:'1.0-2' }}ms</span>
-            <span class="stat-label">Avg Query Time</span>
-          </div>
-        </div>
-      </div>
+      }
     </div>
   `,
   styles: [`
-    .analytics-container { display: flex; flex-direction: column; gap: 24px; }
-    .table-card { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 16px; padding: 24px; backdrop-filter: blur(10px); }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
-    .card-title { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 20px; font-weight: 600; color: #fff; }
-    .title-icon { font-size: 24px; }
-    .result-count { font-size: 13px; color: #64748b; background: rgba(148, 163, 184, 0.1); padding: 4px 12px; border-radius: 20px; }
-    .query-builder { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 20px; background: rgba(15, 23, 42, 0.3); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.1); }
-    .query-row { display: flex; flex-direction: column; gap: 8px; }
-    .query-label { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-    .query-input { padding: 12px 16px; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; color: #fff; font-size: 14px; font-family: monospace; transition: all 0.2s; }
-    .query-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-    .query-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: center; padding-top: 8px; }
-    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; }
-    .btn-icon { font-size: 16px; }
-    .btn-primary { background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #fff; box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3); }
-    .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4); }
-    .btn-secondary { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2); }
-    .btn-secondary:hover { background: rgba(148, 163, 184, 0.2); color: #fff; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .sql-preview { margin-top: 20px; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 12px; overflow: hidden; }
-    .preview-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(15, 23, 42, 0.5); border-bottom: 1px solid rgba(148, 163, 184, 0.1); }
-    .preview-title { font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-    .btn-copy { background: transparent; border: none; color: #64748b; cursor: pointer; font-size: 16px; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; }
-    .btn-copy:hover { background: rgba(148, 163, 184, 0.1); color: #fff; }
-    .sql-code { margin: 0; padding: 16px; font-family: monospace; font-size: 13px; line-height: 1.6; color: #10b981; background: transparent; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
-    .table-container { overflow-x: auto; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.1); }
-    .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .data-table thead { background: rgba(15, 23, 42, 0.5); }
-    .data-table th { padding: 14px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); }
-    .data-table tbody tr { border-bottom: 1px solid rgba(148, 163, 184, 0.05); transition: all 0.2s; }
-    .data-table tbody tr:hover { background: rgba(59, 130, 246, 0.05); }
-    .data-table td { padding: 14px 16px; color: #e2e8f0; }
-    .empty-state { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px 20px; color: #64748b; }
-    .empty-icon { font-size: 48px; opacity: 0.5; }
-    .empty-state p { margin: 0; font-size: 14px; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
-    .stat-card { display: flex; align-items: center; gap: 16px; padding: 20px; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 12px; transition: all 0.3s; }
-    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
-    .stat-icon { font-size: 40px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.05); border-radius: 12px; }
-    .stat-content { display: flex; flex-direction: column; }
-    .stat-value { font-size: 28px; font-weight: 700; color: #fff; }
-    .stat-label { font-size: 13px; color: #64748b; margin-top: 4px; }
-    .stat-info .stat-icon { background: rgba(6, 182, 212, 0.2); }
-    .stat-success .stat-icon { background: rgba(16, 185, 129, 0.2); }
-    .stat-warning .stat-icon { background: rgba(245, 158, 11, 0.2); }
+    .duckdb-dashboard {
+      padding: 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* Page Header */
+    .page-header {
+      margin-bottom: 32px;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-wrapper {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0;
+      color: #fff;
+    }
+
+    .page-subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+      margin: 4px 0 0;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.3s;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .kpi-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .kpi-revenue .kpi-icon { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .kpi-orders .kpi-icon { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+    .kpi-products .kpi-icon { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+    .kpi-avg .kpi-icon { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; }
+    .kpi-pending .kpi-icon { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+    .kpi-alert .kpi-icon { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+    .kpi-trend {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .trend-up {
+      background: rgba(34, 197, 94, 0.15);
+      color: #22c55e;
+    }
+
+    .trend-down {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+    }
+
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .kpi-label {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    /* Content Grid */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+
+    .content-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card-large {
+      grid-row: span 2;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    /* Search Small */
+    .search-small {
+      position: relative;
+      width: 200px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #64748b;
+    }
+
+    .search-small input {
+      width: 100%;
+      padding: 8px 10px 8px 32px;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 13px;
+    }
+
+    .search-small input:focus {
+      outline: none;
+      border-color: #f97316;
+    }
+
+    /* Table */
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    .data-row {
+      transition: background 0.2s;
+    }
+
+    .data-row:hover {
+      background: rgba(249, 115, 22, 0.05);
+    }
+
+    .data-row td {
+      padding: 16px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.05);
+      color: #e2e8f0;
+    }
+
+    .cell-id {
+      font-family: 'Fira Code', monospace;
+      color: #f97316;
+      font-weight: 600;
+    }
+
+    .customer-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .customer-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .customer-name {
+      font-weight: 500;
+    }
+
+    .customer-email {
+      font-size: 12px;
+      color: #64748b;
+      font-family: 'Fira Code', monospace;
+    }
+
+    .cell-product {
+      font-weight: 500;
+    }
+
+    .quantity-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(249, 115, 22, 0.15);
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #f97316;
+    }
+
+    .cell-total {
+      font-weight: 700;
+      color: #22c55e;
+    }
+
+    .cell-date {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .status-processing { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .status-shipped { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .status-delivered { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .status-cancelled { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+    /* Category List */
+    .category-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .category-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .category-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .category-name {
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .category-count {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .category-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .category-revenue {
+      font-size: 14px;
+      font-weight: 600;
+      color: #22c55e;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: rgba(148, 163, 184, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #f97316, #ea580c);
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    /* Product List */
+    .product-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .product-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(15, 23, 42, 0.3);
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .product-item:hover {
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .product-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .product-info {
+      flex: 1;
+    }
+
+    .product-name {
+      font-weight: 500;
+      color: #fff;
+    }
+
+    .product-category {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .product-price {
+      font-weight: 700;
+      color: #22c55e;
+      margin-right: 12px;
+    }
+
+    .stock-indicator {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .stock-indicator.low {
+      color: #f59e0b;
+      font-weight: 600;
+    }
+
+    /* Empty States */
+    .empty-state-small {
+      text-align: center;
+      padding: 40px 20px;
+      color: #64748b;
+    }
+
+    .empty-state-small lucide-angular {
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 1000;
+    }
+
+    .spinner-large {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(249, 115, 22, 0.2);
+      border-top-color: #f97316;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: #f97316;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+
+    .btn-outline:hover {
+      background: rgba(249, 115, 22, 0.1);
+    }
+
+    .btn-icon-sm {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(148, 163, 184, 0.1);
+      color: #94a3b8;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-icon-sm:hover {
+      background: rgba(148, 163, 184, 0.2);
+      color: #fff;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .card-large {
+        grid-row: auto;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .header-actions {
+        width: 100%;
+      }
+
+      .header-actions .btn {
+        flex: 1;
+      }
+    }
   `]
 })
 export class DuckdbAnalyticsComponent implements OnInit {
   private readonly logger = inject(LoggerService);
   private readonly api = inject(ApiService);
+  private readonly notification = inject(NotificationService);
 
-  queryFields = signal('*');
-  queryWhere = signal('');
-  queryOrder = signal('');
-  queryLimit = signal(10);
-  selectedTable = signal('users');
-  isExecuting = signal(false);
-  queryResult = signal<any[] | null>(null);
-  queryTime = signal(0);
-  successfulQueries = signal(0);
-  queryTimes = signal<number[]>([]);
+  readonly icons = { 
+    Database, Search, Filter, Download, TrendingUp, Users, DollarSign, 
+    ShoppingCart, Activity, ArrowUpRight, ArrowDownRight, Calendar, 
+    Package, RefreshCw, X, Plus, Edit2, Trash2 
+  };
+  readonly Math = Math;
 
-  generatedSql = signal('');
-  resultData = signal<any[]>([]);
-  resultColumns = signal<string[]>([]);
-  resultCount = signal(0);
+  // State
+  readonly loading = signal(false);
+  readonly stats = signal<DashboardStats | null>(null);
+  readonly products = signal<Product[]>([]);
+  readonly orders = signal<Order[]>([]);
+  readonly filteredOrders = signal<Order[]>([]);
+  readonly categoryStats = signal<CategoryStats[]>([]);
 
-  ngOnInit(): void {
-    this.updateGeneratedSql();
+  // Search
+  orderSearch = '';
+
+  async ngOnInit(): Promise<void> {
+    await this.loadDashboardData();
   }
 
-  updateGeneratedSql(): void {
-    let sql = `SELECT ${this.queryFields() || '*'}`;
-    sql += ` FROM ${this.selectedTable()}`;
-
-    if (this.queryWhere()) {
-      sql += ` WHERE ${this.queryWhere()}`;
-    }
-
-    if (this.queryOrder()) {
-      sql += ` ORDER BY ${this.queryOrder()}`;
-    }
-
-    if (this.queryLimit()) {
-      sql += ` LIMIT ${this.queryLimit()}`;
-    }
-
-    this.generatedSql.set(sql);
-  }
-
-  resetQuery(): void {
-    this.queryFields.set('*');
-    this.queryWhere.set('');
-    this.queryOrder.set('');
-    this.queryLimit.set(10);
-    this.selectedTable.set('users');
-    this.queryResult.set(null);
-    this.updateGeneratedSql();
-  }
-
-  async executeQuery(): Promise<void> {
-    this.isExecuting.set(true);
-    const startTime = Date.now();
-
+  async loadDashboardData(): Promise<void> {
+    this.loading.set(true);
     try {
-      this.updateGeneratedSql();
-      const sql = this.generatedSql();
+      const [stats, products, orders] = await Promise.all([
+        this.api.callOrThrow<DashboardStats>('get_dashboard_stats', []),
+        this.api.callOrThrow<Product[]>('getProducts', []),
+        this.api.callOrThrow<Order[]>('getOrders', []),
+      ]);
 
-      this.logger.info('Executing query:', sql);
-
-      // Execute query via backend
-      const result = await this.api.callOrThrow<any[]>('executeQuery', [sql]);
-
-      const endTime = Date.now();
-      const time = endTime - startTime;
-
-      this.queryTime.set(time);
-      this.successfulQueries.update(c => c + 1);
-      this.queryTimes.update(times => [...times, time]);
-
-      // Process results
-      if (result && result.length > 0) {
-        this.resultData.set(result);
-        this.resultColumns.set(Object.keys(result[0]));
-        this.resultCount.set(result.length);
-        this.queryResult.set(result);
-      } else {
-        this.resultData.set([]);
-        this.resultColumns.set([]);
-        this.resultCount.set(0);
-        this.queryResult.set([]);
-      }
-
-      this.logger.info(`Query executed in ${time}ms, ${result.length} rows returned`);
+      this.stats.set(stats);
+      this.products.set(products);
+      this.orders.set(orders);
+      this.filteredOrders.set(orders);
+      this.calculateCategoryStats();
     } catch (error) {
-      this.logger.error('Query execution failed', error);
-      this.queryResult.set(null);
+      this.logger.error('Failed to load dashboard data', error);
+      this.notification.showError('Failed to load analytics data');
     } finally {
-      this.isExecuting.set(false);
+      this.loading.set(false);
     }
   }
 
-  get avgQueryTime(): number {
-    const times = this.queryTimes();
-    if (times.length === 0) return 0;
-    return times.reduce((a, b) => a + b, 0) / times.length;
+  calculateCategoryStats(): void {
+    const products = this.products();
+    const orders = this.orders();
+
+    const categoryMap = new Map<string, { count: number; revenue: number }>();
+
+    // Count products per category
+    products.forEach(product => {
+      const current = categoryMap.get(product.category) || { count: 0, revenue: 0 };
+      categoryMap.set(product.category, {
+        count: current.count + 1,
+        revenue: current.revenue
+      });
+    });
+
+    // Calculate revenue per category from orders
+    orders.forEach(order => {
+      // Simple heuristic: get category from product name match
+      const product = products.find(p => order.product_name.includes(p.name));
+      if (product) {
+        const current = categoryMap.get(product.category) || { count: 0, revenue: 0 };
+        categoryMap.set(product.category, {
+          count: current.count,
+          revenue: current.revenue + order.total
+        });
+      }
+    });
+
+    // Convert to array and calculate percentages
+    const totalRevenue = Array.from(categoryMap.values()).reduce((sum, c) => sum + c.revenue, 0);
+    
+    const stats: CategoryStats[] = Array.from(categoryMap.entries()).map(([category, data]) => ({
+      category,
+      product_count: data.count,
+      total_revenue: data.revenue,
+      percentage: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0
+    })).sort((a, b) => b.total_revenue - a.total_revenue);
+
+    this.categoryStats.set(stats);
   }
 
-  copySql(): void {
-    navigator.clipboard.writeText(this.generatedSql());
-    this.logger.info('SQL copied to clipboard');
+  filterOrders(): void {
+    const query = this.orderSearch.toLowerCase();
+    this.filteredOrders.set(
+      this.orders().filter(order =>
+        order.customer_name.toLowerCase().includes(query) ||
+        order.product_name.toLowerCase().includes(query) ||
+        order.customer_email.toLowerCase().includes(query)
+      )
+    );
+  }
+
+  async refreshData(): Promise<void> {
+    await this.loadDashboardData();
+    this.notification.showSuccess('Data refreshed');
+  }
+
+  exportData(): void {
+    const data = {
+      stats: this.stats(),
+      products: this.products(),
+      orders: this.orders(),
+      exportedAt: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    this.notification.showSuccess('Data exported successfully');
+  }
+
+  showAllProducts(): void {
+    this.notification.showInfo('Product list feature coming soon');
+  }
+
+  getInitials(name: string): string {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  }
+
+  formatDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 }

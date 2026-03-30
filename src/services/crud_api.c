@@ -4,6 +4,7 @@
 #include "webui_service.h"
 #include "sqlite_service.h"
 #include "logger_service.h"
+#include "data_validation.h"
 #include <webui.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,164 +94,359 @@ static void handle_get_users(webui_event_t* e) {
     send_response(e, build_json_response(1, json, NULL));
 }
 
+/**
+ * @brief Escape a string for SQL by doubling single quotes
+ * @param dest Destination buffer
+ * @param dest_size Size of destination buffer
+ * @param src Source string to escape
+ */
+static void escape_sql_string(char* dest, size_t dest_size, const char* src) {
+    if (!dest || !src) return;
+    
+    size_t j = 0;
+    for (size_t i = 0; src[i] && j < dest_size - 1; i++) {
+        if (src[i] == '\'') {
+            if (j + 2 < dest_size) {
+                dest[j++] = '\'';
+                dest[j++] = '\'';
+            }
+        } else {
+            dest[j++] = src[i];
+        }
+    }
+    dest[j] = '\0';
+}
+
+/**
+ * @brief Validate integer input
+ * @param str String to validate
+ * @param out Output integer value
+ * @return true if valid integer, false otherwise
+ */
+static bool validate_int(const char* str, int* out) {
+    if (!str || !out) return false;
+    
+    char* endptr;
+    long val = strtol(str, &endptr, 10);
+    
+    if (*endptr != '\0' || val < INT_MIN || val > INT_MAX) {
+        return false;
+    }
+    
+    *out = (int)val;
+    return true;
+}
+
 static void handle_create_user(webui_event_t* e) {
     LoggerService* logger = logger_service_inject();
-    
+
     if (!g_sqlite) {
         send_response(e, build_json_response(0, NULL, "Database not initialized"));
         return;
     }
-    
+
     const char* json_str = webui_get_string(e);
     if (!json_str) {
         send_response(e, build_json_response(0, NULL, "Invalid request"));
         return;
     }
-    
+
     char name[256] = {0}, email[256] = {0};
     int age = 25;
-    
+
+    /* Parse name with bounds checking */
     const char* n = strstr(json_str, "\"name\"");
     if (n) {
         const char* q1 = strchr(n, '"');
         const char* q2 = q1 ? strchr(q1 + 1, '"') : NULL;
-        if (q1 && q2 && q2 - q1 - 1 < (int)sizeof(name)) {
+        if (q1 && q2 && (size_t)(q2 - q1 - 1) < sizeof(name)) {
             strncpy(name, q1 + 1, q2 - q1 - 1);
+            name[q2 - q1 - 1] = '\0';
         }
     }
-    
+
+    /* Parse email with bounds checking */
     const char* e2 = strstr(json_str, "\"email\"");
     if (e2) {
         const char* q1 = strchr(e2, '"');
         const char* q2 = q1 ? strchr(q1 + 1, '"') : NULL;
-        if (q1 && q2 && q2 - q1 - 1 < (int)sizeof(email)) {
+        if (q1 && q2 && (size_t)(q2 - q1 - 1) < sizeof(email)) {
             strncpy(email, q1 + 1, q2 - q1 - 1);
+            email[q2 - q1 - 1] = '\0';
         }
     }
-    
+
+    /* Parse age with validation */
     const char* a = strstr(json_str, "\"age\"");
-    if (a) sscanf(a + 5, "%d", &age);
-    
+    if (a) {
+        int parsed_age;
+        if (validate_int(a + 5, &parsed_age) && parsed_age > 0 && parsed_age <= 150) {
+            age = parsed_age;
+        }
+    }
+
     if (!name[0] || !email[0]) {
         send_response(e, build_json_response(0, NULL, "Missing fields"));
         return;
     }
+
+    /* Use prepared statement to prevent SQL injection */
+    sqlite3_stmt* stmt = sqlite_prepare(g_sqlite,
+        "INSERT INTO users (name, email, age) VALUES (?, ?, ?)");
     
-    char sql[1024];
-    snprintf(sql, sizeof(sql), 
-        "INSERT INTO users (name, email, age) VALUES ('%s', '%s', %d)",
-        name, email, age);
-    
-    if (!sqlite_execute(g_sqlite, sql)) {
+    if (!stmt) {
+        if (logger) logger_log(logger, "ERROR", "Failed to prepare statement");
+        send_response(e, build_json_response(0, NULL, "Database error"));
+        return;
+    }
+
+    sqlite_bind_text(stmt, 1, name);
+    sqlite_bind_text(stmt, 2, email);
+    sqlite_bind_int(stmt, 3, age);
+
+    if (sqlite_step_execute(g_sqlite, stmt) != SQLITE_DONE) {
+        sqlite_finalize(stmt);
         if (logger) logger_log(logger, "ERROR", "create_user failed");
         send_response(e, build_json_response(0, NULL, "Insert failed"));
         return;
     }
-    
+
     long long id = sqlite_last_insert_rowid(g_sqlite);
-    if (logger) logger_log(logger, "INFO", "Created user id=%lld", id);
+    sqlite_finalize(stmt);
     
+    if (logger) logger_log(logger, "INFO", "Created user id=%lld", id);
+
+    /* Escape output for JSON */
+    char escaped_name[512], escaped_email[512];
+    escape_sql_string(escaped_name, sizeof(escaped_name), name);
+    escape_sql_string(escaped_email, sizeof(escaped_email), email);
+
     char resp[1024];
-    snprintf(resp, sizeof(resp), 
-        "{\"id\":%lld,\"name\":\"%s\",\"email\":\"%s\",\"age\":%d}", id, name, email, age);
+    snprintf(resp, sizeof(resp),
+        "{\"id\":%lld,\"name\":\"%s\",\"email\":\"%s\",\"age\":%d}", 
+        id, escaped_name, escaped_email, age);
     send_response(e, build_json_response(1, resp, NULL));
 }
 
 static void handle_update_user(webui_event_t* e) {
     LoggerService* logger = logger_service_inject();
-    
+
     if (!g_sqlite) {
         send_response(e, build_json_response(0, NULL, "Database not initialized"));
         return;
     }
-    
+
     const char* json_str = webui_get_string(e);
     if (!json_str) {
         send_response(e, build_json_response(0, NULL, "Invalid request"));
         return;
     }
-    
+
     char name[256] = {0}, email[256] = {0};
     int id = 0, age = 25;
-    
+
+    /* Parse ID with validation */
     const char* i = strstr(json_str, "\"id\"");
-    if (i) sscanf(i + 4, "%d", &id);
-    
+    if (i) {
+        int parsed_id;
+        if (validate_int(i + 4, &parsed_id) && parsed_id > 0) {
+            id = parsed_id;
+        }
+    }
+
+    /* Parse name with bounds checking */
     const char* n = strstr(json_str, "\"name\"");
     if (n) {
         const char* q1 = strchr(n, '"');
         const char* q2 = q1 ? strchr(q1 + 1, '"') : NULL;
-        if (q1 && q2 && q2 - q1 - 1 < (int)sizeof(name)) {
+        if (q1 && q2 && (size_t)(q2 - q1 - 1) < sizeof(name)) {
             strncpy(name, q1 + 1, q2 - q1 - 1);
+            name[q2 - q1 - 1] = '\0';
         }
     }
-    
+
+    /* Parse email with bounds checking */
     const char* e2 = strstr(json_str, "\"email\"");
     if (e2) {
         const char* q1 = strchr(e2, '"');
         const char* q2 = q1 ? strchr(q1 + 1, '"') : NULL;
-        if (q1 && q2 && q2 - q1 - 1 < (int)sizeof(email)) {
+        if (q1 && q2 && (size_t)(q2 - q1 - 1) < sizeof(email)) {
             strncpy(email, q1 + 1, q2 - q1 - 1);
+            email[q2 - q1 - 1] = '\0';
         }
     }
-    
+
+    /* Parse age with validation */
     const char* a = strstr(json_str, "\"age\"");
-    if (a) sscanf(a + 5, "%d", &age);
-    
-    if (!id || (!name[0] && !email[0])) {
-        send_response(e, build_json_response(0, NULL, "Missing fields"));
+    if (a) {
+        int parsed_age;
+        if (validate_int(a + 5, &parsed_age) && parsed_age > 0 && parsed_age <= 150) {
+            age = parsed_age;
+        }
+    }
+
+    if (!id) {
+        send_response(e, build_json_response(0, NULL, "Missing ID"));
         return;
     }
+
+    /* Use prepared statement to prevent SQL injection */
+    sqlite3_stmt* stmt = sqlite_prepare(g_sqlite,
+        "UPDATE users SET name = ?, email = ?, age = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
     
-    char sql[2048];
-    snprintf(sql, sizeof(sql), 
-        "UPDATE users SET name='%s', email='%s', age=%d, updated_at=CURRENT_TIMESTAMP WHERE id=%d",
-        name, email, age, id);
-    
-    if (!sqlite_execute(g_sqlite, sql)) {
+    if (!stmt) {
+        if (logger) logger_log(logger, "ERROR", "Failed to prepare update statement");
+        send_response(e, build_json_response(0, NULL, "Database error"));
+        return;
+    }
+
+    sqlite_bind_text(stmt, 1, name);
+    sqlite_bind_text(stmt, 2, email);
+    sqlite_bind_int(stmt, 3, age);
+    sqlite_bind_int(stmt, 4, id);
+
+    if (sqlite_step_execute(g_sqlite, stmt) != SQLITE_DONE) {
+        sqlite_finalize(stmt);
+        if (logger) logger_log(logger, "ERROR", "update_user failed");
         send_response(e, build_json_response(0, NULL, "Update failed"));
         return;
     }
+
+    sqlite_finalize(stmt);
     
     if (logger) logger_log(logger, "INFO", "Updated user id=%d", id);
+    
     char resp[1024];
-    snprintf(resp, sizeof(resp), "{\"id\":%d,\"name\":\"%s\",\"email\":\"%s\",\"age\":%d}", id, name, email, age);
+    snprintf(resp, sizeof(resp), 
+        "{\"id\":%d,\"name\":\"%s\",\"email\":\"%s\",\"age\":%d}", 
+        id, name, email, age);
     send_response(e, build_json_response(1, resp, NULL));
 }
 
 static void handle_delete_user(webui_event_t* e) {
     LoggerService* logger = logger_service_inject();
-    
+
     if (!g_sqlite) {
         send_response(e, build_json_response(0, NULL, "Database not initialized"));
         return;
     }
-    
+
     const char* json_str = webui_get_string(e);
     if (!json_str) {
         send_response(e, build_json_response(0, NULL, "Invalid request"));
         return;
     }
-    
+
     int id = 0;
     const char* i = strstr(json_str, "\"id\"");
     if (i) sscanf(i + 4, "%d", &id);
-    
+
     if (!id) {
         send_response(e, build_json_response(0, NULL, "Missing ID"));
         return;
     }
+
+    /* Validate deletion - check for dependencies */
+    DependencyInfo dep_info;
+    ValidationCode validation = validate_user_delete(g_sqlite, id, &dep_info);
     
+    if (validation != VALIDATION_OK) {
+        if (logger) {
+            logger_log(logger, "WARN", "User delete validation failed: %s", 
+                      validation_code_to_string(validation));
+        }
+        
+        if (validation == VALIDATION_NOT_FOUND) {
+            send_response(e, build_json_response(0, NULL, "User not found"));
+        } else if (validation == VALIDATION_HAS_DEPENDENCIES) {
+            /* Return dependency info for user-friendly message */
+            char error_json[512];
+            snprintf(error_json, sizeof(error_json),
+                "{\"has_dependencies\":true,\"table\":\"%s\",\"count\":%d,\"message\":\"%s\"}",
+                dep_info.table, dep_info.count, dep_info.message);
+            send_response(e, build_json_response(0, NULL, error_json));
+        } else {
+            send_response(e, build_json_response(0, NULL, validation_code_to_string(validation)));
+        }
+        return;
+    }
+
+    /* Safe to delete */
     char sql[256];
     snprintf(sql, sizeof(sql), "DELETE FROM users WHERE id=%d", id);
-    
+
     if (!sqlite_execute(g_sqlite, sql)) {
         send_response(e, build_json_response(0, NULL, "Delete failed"));
         return;
     }
-    
+
     if (logger) logger_log(logger, "INFO", "Deleted user id=%d", id);
     send_response(e, build_json_response(1, "{\"message\":\"deleted\"}", NULL));
+}
+
+/**
+ * @brief Check if a user can be safely deleted (validation endpoint)
+ */
+static void handle_validate_delete_user(webui_event_t* e) {
+    LoggerService* logger = logger_service_inject();
+
+    if (!g_sqlite) {
+        send_response(e, build_json_response(0, NULL, "Database not initialized"));
+        return;
+    }
+
+    const char* json_str = webui_get_string(e);
+    if (!json_str) {
+        send_response(e, build_json_response(0, NULL, "Invalid request"));
+        return;
+    }
+
+    int id = 0;
+    const char* i = strstr(json_str, "\"id\"");
+    if (i) sscanf(i + 4, "%d", &id);
+
+    if (!id) {
+        send_response(e, build_json_response(0, NULL, "Missing ID"));
+        return;
+    }
+
+    /* Validate deletion */
+    DependencyInfo dep_info = {0};
+    ValidationCode validation = validate_user_delete(g_sqlite, id, &dep_info);
+    
+    /* Get user name for display */
+    char name_sql[256];
+    snprintf(name_sql, sizeof(name_sql), "SELECT name FROM users WHERE id=%d", id);
+    const char* user_name = sqlite_query_scalar(g_sqlite, name_sql);
+    
+    /* Build response */
+    char response[1024];
+    
+    if (validation == VALIDATION_OK) {
+        snprintf(response, sizeof(response),
+            "{\"success\":true,\"can_delete\":true,\"user_name\":\"%s\"}",
+            user_name ? user_name : "Unknown");
+    } else if (validation == VALIDATION_HAS_DEPENDENCIES) {
+        snprintf(response, sizeof(response),
+            "{\"success\":true,\"can_delete\":false,\"user_name\":\"%s\","
+            "\"dependency_table\":\"%s\",\"dependency_count\":%d,\"message\":\"%s\"}",
+            user_name ? user_name : "Unknown",
+            dep_info.table, dep_info.count, dep_info.message);
+    } else if (validation == VALIDATION_NOT_FOUND) {
+        snprintf(response, sizeof(response),
+            "{\"success\":false,\"error\":\"User not found\"}");
+    } else {
+        snprintf(response, sizeof(response),
+            "{\"success\":false,\"error\":\"%s\"}",
+            validation_code_to_string(validation));
+    }
+    
+    if (logger) {
+        logger_log(logger, "INFO", "Validate delete user %d: %s", 
+                  id, validation_code_to_string(validation));
+    }
+    
+    send_response(e, response);
 }
 
 static void handle_get_user_stats(webui_event_t* e) {
@@ -534,25 +730,35 @@ int crud_api_init(WebuiService* webui, SQLiteService* sqlite) {
     if (!webui || !sqlite) {
         return 0;
     }
-    
+
     LoggerService* logger = logger_service_inject();
     g_sqlite = sqlite;
     g_window = webui->window;
-    
+
+    /* CRUD handlers */
     webui_bind(webui->window, "getUsers", handle_get_users);
     webui_bind(webui->window, "createUser", handle_create_user);
     webui_bind(webui->window, "updateUser", handle_update_user);
     webui_bind(webui->window, "deleteUser", handle_delete_user);
     webui_bind(webui->window, "getUserStats", handle_get_user_stats);
+    
+    /* Product handlers */
     webui_bind(webui->window, "getProducts", handle_get_products);
     webui_bind(webui->window, "getCategories", handle_get_categories);
+    
+    /* Order handlers */
     webui_bind(webui->window, "getOrders", handle_get_orders);
+    
+    /* Validation handlers */
+    webui_bind(webui->window, "validateDeleteUser", handle_validate_delete_user);
+    
+    /* Utility handlers */
     webui_bind(webui->window, "loadDemoData", handle_load_demo_data);
     webui_bind(webui->window, "getDbInfo", handle_get_db_info);
-    
+
     if (logger) {
-        logger_log(logger, "INFO", "CRUD API initialized with %d handlers", 10);
+        logger_log(logger, "INFO", "CRUD API initialized with %d handlers", 13);
     }
-    
+
     return 1;
 }
